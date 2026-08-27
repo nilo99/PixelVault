@@ -1,0 +1,61 @@
+{
+  "nintendo": {
+    "gameboy_advance": {
+      "urls": []
+    },
+    "gameboy_color": {
+      "urls": []
+    },
+    "gameboy": {
+      "urls": []
+    },
+    "super_nintendo_entertainment_system": {
+      "urls": []
+    },
+    "nintendo_64": {
+      "urls": []
+    },
+    "nintendo_entertainment_system": {
+      "urls": []
+    },
+    "nintendo_ds": {
+      "urls": []
+    },
+    "nintendo_3ds": {
+      "urls": []
+    },
+    "gamecube": {
+      "urls": []
+    }
+  },
+  "sony": {
+    "playstation_portable": {
+      "urls": []
+    },
+    "playstation_2": {
+      "urls": []
+    },
+    "playstation": {
+      "urls": []
+    }
+  },
+  "sega": {
+    "master_system": {
+      "urls": []
+    },
+    "genesis": {
+      "urls": []
+    },
+    "dreamcast": {
+      "urls": []
+    },
+    "cd": {
+      "urls": []
+    }
+  },
+  "rompacks": {
+    "proper_romsets": {
+      "urls": []
+    }
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches GengarColors.bgBottom (lib/core/theme/gengar_colors.dart) — used as the
+         native window/launch background so no white/light flash is visible before Flutter's
+         first frame, or behind the Flutter view during resizes/transitions. -->
+    <color name="gengar_bg">#0A0C11</color>
+</resources>

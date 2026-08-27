@@ -1,0 +1,223 @@
+{
+  "@@locale": "pt",
+
+  "commonCancel": "Cancelar",
+  "commonAdd": "Adicionar",
+  "commonChange": "Alterar",
+  "commonSet": "Definir",
+  "commonOk": "OK",
+  "commonGenericError": "Erro: {error}",
+  "@commonGenericError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "routerPageNotFoundTitle": "Página não encontrada",
+  "routerPageNotFoundAction": "Voltar às plataformas",
+
+  "navBarPlatforms": "Plataformas",
+  "navBarDownloads": "Downloads",
+  "navBarSources": "Fontes",
+  "navBarSettings": "Definições",
+
+  "aboutTitle": "Sobre",
+  "aboutBody": "App pessoal de biblioteca e downloads de ROMs.",
+
+  "onboardingSkip": "Saltar",
+  "onboardingNext": "Seguinte",
+  "onboardingStart": "Começar",
+  "onboardingStepCounter": "PASSO {step} / {total}",
+  "@onboardingStepCounter": {
+    "placeholders": { "step": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "onboardingStep1Title": "A tua biblioteca retro — numa só app",
+  "onboardingStep1Description": "O PixelVault organiza ROMs de todas as tuas consolas favoritas. Pesquisa, filtra por tags e descarrega — tudo a partir do telemóvel.",
+  "onboardingStep1Highlight1": "PixelVault",
+  "onboardingStep1Highlight2": "ROMs",
+  "onboardingStep2Title": "Indexa qualquer fonte — sem descarregar",
+  "onboardingStep2Description": "Adiciona servidores HTTP ou magnet links. O PixelVault lê toda a árvore de ficheiros e cataloga nomes, tags e tamanhos — sem transferir os jogos.",
+  "onboardingStep2Highlight1": "HTTP",
+  "onboardingStep2Highlight2": "magnet links",
+  "onboardingStep3Title": "Descarrega com controlo total",
+  "onboardingStep3Description": "Downloads simultâneos, limite de velocidade, extração automática de arquivos e downloads em segundo plano — sem perder nada ao fechar a app.",
+  "onboardingStep3Highlight1": "extração automática",
+  "onboardingStep3Highlight2": "segundo plano",
+  "onboardingStep4Title": "Pronto para jogar",
+  "onboardingStep4Description": "Organiza os ficheiros por consola, escolhe a pasta de destino e abre-os diretamente no teu emulador favorito. Bons jogos!",
+  "onboardingStep4Highlight1": "emulador favorito",
+
+  "sourcesEyebrow": "SCRAPING",
+  "sourcesTitle": "Fontes",
+  "sourcesUnsyncedBanner": "{count, plural, =0{0 consolas com fontes mas ainda por sincronizar.} =1{1 consola com fontes mas ainda por sincronizar.} other{{count} consolas com fontes mas ainda por sincronizar.}}",
+  "@sourcesUnsyncedBanner": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "sourcesSyncAllButton": "Sincronizar tudo",
+  "sourcesManufacturerSummary": "{consoleCount, plural, =0{0 consolas} =1{1 consola} other{{consoleCount} consolas}} · {syncedCount, plural, =0{0 sincronizadas} =1{1 sincronizada} other{{syncedCount} sincronizadas}}",
+  "@sourcesManufacturerSummary": {
+    "placeholders": { "consoleCount": { "type": "int" }, "syncedCount": { "type": "int" } }
+  },
+  "sourcesAddConsoleTooltip": "Adicionar consola",
+  "sourcesNoConsolesEmptyState": "Sem consolas. Usa o botão + para adicionar.",
+  "sourcesNeverSynced": "ainda por sincronizar",
+  "sourcesGamesIndexedCount": "{count, plural, =0{0 jogos indexados} =1{1 jogo indexado} other{{count} jogos indexados}}",
+  "@sourcesGamesIndexedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "sourcesSourceCount": "{count, plural, =0{0 fontes} =1{1 fonte} other{{count} fontes}}",
+  "@sourcesSourceCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "sourcesSourceLabel": "Fonte {index}",
+  "@sourcesSourceLabel": {
+    "placeholders": { "index": { "type": "int" } }
+  },
+  "sourcesAddSourceTooltip": "Adicionar fonte",
+  "sourcesRemoveSourceTooltip": "Remover fonte",
+  "sourcesNoSourcesEmptyState": "Sem fontes. Usa o ícone de link para adicionar uma.",
+  "sourcesEmptyStateBody": "Adiciona um fabricante e uma fonte (HTTP ou magnet) para começar a indexar jogos.",
+  "sourcesAddManufacturerButton": "Adicionar fabricante",
+  "sourcesSyncingBanner": "A sincronizar catálogo",
+  "sourcesAddManufacturerError": "Falha ao adicionar fabricante: {error}",
+  "@sourcesAddManufacturerError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "sourcesAddConsoleError": "Falha ao adicionar consola: {error}",
+  "@sourcesAddConsoleError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "sourcesAddSourceError": "Falha ao adicionar fonte: {error}",
+  "@sourcesAddSourceError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "sourcesRemoveSourceError": "Falha ao remover fonte: {error}",
+  "@sourcesRemoveSourceError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+
+  "addManufacturerDialogTitle": "Novo fabricante",
+  "addManufacturerDialogIdLabel": "ID (ex: nintendo)",
+  "addManufacturerDialogNameLabel": "Nome (ex: Nintendo)",
+
+  "addConsoleDialogTitle": "Nova consola",
+  "addConsoleDialogIdLabel": "ID (ex: gameboy_advance)",
+  "addConsoleDialogNameLabel": "Nome (ex: Game Boy Advance)",
+
+  "addUrlDialogTitle": "Nova fonte",
+  "addUrlDialogUrlLabel": "URL (http://…) ou magnet:?…",
+  "addUrlDialogContentTypeLabel": "Tipo de conteúdo",
+  "addUrlDialogApplyTo": "Aplicar a ({count} selecionada{count, plural, =0{s} =1{} other{s}}):",
+  "@addUrlDialogApplyTo": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "addUrlDialogSubmitButton": "Adicionar e sincronizar",
+
+  "settingsEyebrow": "SISTEMA",
+  "settingsTitle": "Definições",
+  "settingsStorageSection": "ARMAZENAMENTO",
+  "settingsDownloadDirTitle": "Pasta de download (SAF)",
+  "settingsNotSet": "Não definida",
+  "settingsSeparateByConsoleTitle": "Separar por consola",
+  "settingsSeparateByConsoleSubtitle": "Cria /Nintendo Game Boy Advance/…",
+  "settingsLanguageSection": "IDIOMA",
+  "settingsLanguageTitle": "Idioma",
+  "settingsConsoleFoldersSection": "PASTAS POR CONSOLA",
+  "settingsNoConsolesConfigured": "Sem consolas configuradas ainda.",
+  "settingsNetworkSection": "REDE",
+  "settingsSpeedLimitTitle": "Limite de velocidade",
+  "settingsUnlimited": "Ilimitado",
+  "settingsSpeedMbs": "{value} MB/s",
+  "@settingsSpeedMbs": {
+    "placeholders": { "value": { "type": "String" } }
+  },
+  "settingsSpeedMinLabel": "0 · ilimitado",
+  "settingsConcurrentDownloadsTitle": "Downloads simultâneos",
+  "settingsConcurrentMaxLabel": "6 máx.",
+  "settingsArchivesSection": "ARQUIVOS",
+  "settingsAutoUnzipTitle": "Extração automática",
+  "settingsAutoUnzipSubtitle": ".zip .7z .rar .tar .gz .xz · apaga o comprimido",
+  "settingsUsesMainFolder": "Usa a pasta principal",
+
+  "downloadsEyebrow": "FILA",
+  "downloadsTitle": "Downloads",
+  "downloadsActiveLabel": "Ativos",
+  "downloadsSpeedLabel": "MB/s total",
+  "downloadsQueuedLabel": "Na fila",
+  "downloadsEmptyState": "Nenhum download em curso",
+  "downloadsStatusDownloading": "{percent}% · {speed} MB/s",
+  "@downloadsStatusDownloading": {
+    "placeholders": { "percent": { "type": "String" }, "speed": { "type": "String" } }
+  },
+  "downloadsStatusCopying": "A copiar p/ SD Card (SAF)",
+  "downloadsStatusUnzipping": "A descompactar arquivo",
+  "downloadsStatusCompleted": "Concluído",
+  "downloadsStatusFailed": "Falhou · toca em tentar de novo",
+  "downloadsChipDownloading": "A descarregar",
+  "downloadsChipCopying": "A copiar",
+  "downloadsChipUnzipping": "A extrair",
+  "downloadsChipFailed": "Falhou",
+  "downloadsStopTooltip": "Parar",
+  "downloadsRetryTooltip": "Tentar novamente",
+  "downloadsRemoveTooltip": "Remover",
+  "downloadsRemoveFromListTooltip": "Remover da lista",
+
+  "libraryDefaultTitle": "Biblioteca",
+  "libraryHintSearch": "Pesquisar roms…",
+  "libraryFiltersChip": "Filtros",
+  "libraryFormatChip": "Formato",
+  "libraryColRegion": "REGIÃO",
+  "libraryColLanguage": "IDIOMA",
+  "libraryColVideo": "VÍDEO",
+  "libraryColType": "TIPO",
+  "libraryColExtension": "EXTENSÃO",
+  "libraryNoResults": "Sem resultados.\nAdiciona uma fonte no separador Fontes e faz rescan.",
+  "libraryMetaLabel": "{count} ficheiros · {size}",
+  "@libraryMetaLabel": {
+    "placeholders": { "count": { "type": "String" }, "size": { "type": "String" } }
+  },
+  "libraryDownloadStartedSnackbar": "Download de \"{name}\" iniciado.",
+  "@libraryDownloadStartedSnackbar": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "platformSelectSeedError": "Erro ao carregar consolas: {error}",
+  "@platformSelectSeedError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "platformSelectEyebrow": "CATÁLOGO",
+  "platformSelectTitle": "Plataformas",
+  "platformSelectSubtitle": "{consoleCount} consolas ativas · {fileCount} ficheiros indexados",
+  "@platformSelectSubtitle": {
+    "placeholders": { "consoleCount": { "type": "int" }, "fileCount": { "type": "int" } }
+  },
+  "platformSelectSearchHint": "Pesquisar consolas…",
+  "platformSelectActiveConsolesSection": "CONSOLAS ATIVAS",
+  "platformSelectEmptyState": "Sem plataformas.\nVai a Fontes para adicionar fontes.",
+  "platformSelectGlobalLibraryTitle": "Biblioteca global",
+  "platformSelectGlobalLibrarySubtitle": "Todos os jogos de todas as consolas",
+  "platformSelectConsoleSummary": "{count, plural, =0{0 jogos} =1{1 jogo} other{{count} jogos}} · {size}",
+  "@platformSelectConsoleSummary": {
+    "placeholders": { "count": { "type": "int" }, "size": { "type": "String" } }
+  },
+
+  "sourceInstallResolveError": "Não foi possível instalar a fonte: {error}",
+  "@sourceInstallResolveError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "sourceInstallUnsupportedConsole": "Esta consola não é suportada nesta versão da app.",
+  "sourceInstallAlreadyInstalled": "Esta fonte já está instalada em \"{name}\".",
+  "@sourceInstallAlreadyInstalled": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "sourceInstallConfirmTitle": "Adicionar fonte",
+  "sourceInstallConfirmBody": "Adicionar uma nova fonte a \"{name}\"?",
+  "@sourceInstallConfirmBody": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "sourceInstallSuccess": "Fonte adicionada a \"{name}\". Vai a Fontes para sincronizar.",
+  "@sourceInstallSuccess": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "sourceInstallAddError": "Falha ao adicionar a fonte: {error}",
+  "@sourceInstallAddError": {
+    "placeholders": { "error": { "type": "String" } }
+  }
+}
