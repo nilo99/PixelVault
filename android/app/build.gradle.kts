@@ -39,11 +39,12 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
 
-        // ABI filtering is driven by `flutter build apk --split-per-abi`
-        // (android.splits.abi) instead of an explicit ndk.abiFilters block —
-        // Gradle rejects having both configured at once. libtorrent4j ships
-        // arm64-v8a/armeabi-v7a/x86_64 native libs; without --split-per-abi
-        // a universal APK bundling all three is produced instead.
+        // libtorrent4j ships arm64-v8a/armeabi-v7a/x86_64 native libs, so a
+        // plain `flutter build apk` would bundle all three into one universal
+        // APK. The `androidComponents` block below trims x86_64 back out of
+        // release builds — see the note there. Do not combine that with
+        // `--split-per-abi`
+        // (android.splits.abi): Gradle rejects having both configured at once.
     }
 
     packagingOptions {
@@ -84,6 +85,18 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+}
+
+// x86_64 only serves emulators and ChromeOS — no shipping phone uses it, and
+// libtorrent4j's copy of it alone is ~40MB of a ~116MB universal APK. Excluded
+// per-variant (rather than via `defaultConfig.ndk.abiFilters`, which AGP does
+// not apply to jniLibs coming from dependency AARs) so debug builds keep every
+// ABI and `flutter run` still works on an x86_64 emulator — only
+// `flutter run --release` would now fail there.
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.packaging.jniLibs.excludes.add("lib/x86_64/**")
     }
 }
 
