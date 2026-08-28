@@ -2,6 +2,8 @@
 <resources>
     <!-- Matches GengarColors.bgBottom (lib/core/theme/gengar_colors.dart) — used as the
          native window/launch background so no white/light flash is visible before Flutter's
-         first frame, or behind the Flutter view during resizes/transitions. -->
+         first frame, or behind the Flutter view during resizes/transitions. Also backs the
+         adaptive launcher icon (mipmap-anydpi-v26/ic_launcher.xml), so the icon, the splash
+         and the app's first frame are all the same colour. -->
     <color name="gengar_bg">#0A0C11</color>
 </resources>
