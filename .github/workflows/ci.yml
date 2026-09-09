@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dart:
+    name: Analyze & test (Dart)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # The Drift/Riverpod/JSON output is committed, so regenerating must be a
+      # no-op. A diff here means someone edited a table or provider without
+      # re-running build_runner, and the committed .g.dart files are stale.
+      - name: Verify generated code is up to date
+        run: |
+          dart run build_runner build
+          git diff --exit-code -- '*.g.dart'
+
+      # Same idea for translations: all five locales are generated from the
+      # ARB files and must stay in sync with them.
+      - name: Verify localizations are up to date
+        run: |
+          flutter gen-l10n
+          git diff --exit-code -- lib/l10n/
+
+      - run: flutter analyze --fatal-infos
+
+      - run: flutter test
+
+  kotlin:
+    name: Test (Kotlin plugin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # The Gradle wrapper is git-ignored in Flutter projects; the first
+      # Android build is what materializes it.
+      - name: Generate the Android Gradle project
+        run: flutter build apk --debug
+
+      - name: Run plugin unit tests
+        working-directory: android
+        run: ./gradlew :pixelvault_torrent:testDebugUnitTest
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-test-report
+          path: plugins/pixelvault_torrent/android/build/reports/tests/

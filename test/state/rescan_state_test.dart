@@ -7,9 +7,9 @@ void main() {
       const s = RescanState();
       expect(s.isRescanning, isFalse);
       expect(s.lastRescanTime, isNull);
-      expect(s.progressMessage, '');
+      expect(s.progressNotice, isNull);
       expect(s.torrentFetchProgress, '');
-      expect(s.errorMessage, isNull);
+      expect(s.errorNotice, isNull);
     });
   });
 
@@ -18,24 +18,33 @@ void main() {
       const original = RescanState();
       final updated = original.copyWith(
         isRescanning: true,
-        progressMessage: 'Processing console 1/10: GBA',
+        progressNotice: const RescanNotice(
+          RescanNoticeKind.processing,
+          console: 'GBA',
+          current: 1,
+          total: 10,
+        ),
       );
       expect(updated.isRescanning, isTrue);
-      expect(updated.progressMessage, 'Processing console 1/10: GBA');
+      expect(updated.progressNotice?.kind, RescanNoticeKind.processing);
+      expect(updated.progressNotice?.console, 'GBA');
+      expect(updated.progressNotice?.current, 1);
+      expect(updated.progressNotice?.total, 10);
       // unchanged
       expect(updated.lastRescanTime, isNull);
       expect(updated.torrentFetchProgress, '');
     });
 
-    test('errorMessage can be set and cleared (null)', () {
+    test('errorNotice can be set and cleared (null)', () {
       const original = RescanState();
-      final withError = original.copyWith(errorMessage: 'Scrape failed');
-      expect(withError.errorMessage, 'Scrape failed');
+      final withError =
+          original.copyWith(errorNotice: const RescanNotice.literal('Scrape failed'));
+      expect(withError.errorNotice?.text, 'Scrape failed');
 
-      // errorMessage is nullable and copyWith always passes it through
+      // errorNotice is nullable and copyWith always passes it through
       // (not using ?? like the other fields), so passing null clears it.
-      final cleared = withError.copyWith(errorMessage: null);
-      expect(cleared.errorMessage, isNull);
+      final cleared = withError.copyWith(errorNotice: null);
+      expect(cleared.errorNotice, isNull);
     });
 
     test('lastRescanTime is set when provided', () {

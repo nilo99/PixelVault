@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pixelvault/core/deeplink/source_install_client.dart';
+import 'package:pixelvault/core/utils/error_sanitizer.dart';
 
 const _testSecret = 'test-secret-value';
 
@@ -69,7 +70,7 @@ void main() {
 
     await expectLater(
       client.resolve('expired'),
-      throwsA(isA<SourceInstallException>().having((e) => e.message, 'message', contains('já não é válido'))),
+      throwsA(isA<SourceInstallException>().having((e) => e.reason, 'reason', ErrorReason.linkExpired)),
     );
   });
 
@@ -82,7 +83,7 @@ void main() {
 
     await expectLater(
       client.resolve('tok'),
-      throwsA(isA<SourceInstallException>().having((e) => e.message, 'message', contains('já não é válido'))),
+      throwsA(isA<SourceInstallException>().having((e) => e.reason, 'reason', ErrorReason.linkExpired)),
     );
   });
 
@@ -121,7 +122,7 @@ void main() {
 
       await expectLater(
         client.resolve('tok'),
-        throwsA(isA<SourceInstallException>().having((e) => e.message, 'message', contains('já não é válido'))),
+        throwsA(isA<SourceInstallException>().having((e) => e.reason, 'reason', ErrorReason.linkExpired)),
       );
     });
   });

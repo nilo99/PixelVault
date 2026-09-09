@@ -2,7 +2,6 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:pixelvault/app.dart';
 import 'package:pixelvault/core/db/database.dart';
 import 'package:pixelvault/core/providers.dart';
@@ -18,11 +17,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// the onboarding-gate checks weren't short-circuited behind
 /// `languageChosen`). None of this had any test coverage before.
 void main() {
-  setUpAll(() {
-    // Avoid google_fonts trying to fetch font files over the network during
-    // widget tests (no real internet access in the test sandbox).
-    GoogleFonts.config.allowRuntimeFetching = false;
-  });
 
   Future<ProviderContainer> pumpApp(
     WidgetTester tester, {

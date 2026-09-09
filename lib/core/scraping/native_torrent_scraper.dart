@@ -4,6 +4,7 @@ import 'package:pixelvault_torrent/pixelvault_torrent.dart';
 import '../db/daos/downloadable_file_repository.dart';
 import '../db/database.dart';
 import '../models/url_entry.dart';
+import 'file_naming.dart';
 import 'file_parsing.dart';
 import 'scraping_constants.dart';
 import 'torrent_scraper.dart';
@@ -33,11 +34,17 @@ class NativeTorrentScraper implements TorrentScraper {
 
     for (final entry in metadata.files) {
       final (cleanName, tags) = FileParsing.extractNameAndTags(entry.fileName);
-      final extension = entry.fileName.contains('.') ? '.${entry.fileName.split('.').last}' : '';
+      // A torrent's file list is peer-supplied; run it through the same
+      // sanitizer the HTTP path uses so a hostile or merely odd entry can't
+      // produce a name SAF refuses to create.
+      final resolvedName = FileNaming.fileNameFromHref(entry.fileName);
+      final fileName =
+          resolvedName.isEmpty ? FileNaming.fallbackName(entry.fileIndex, cleanName) : resolvedName;
+      final extension = FileNaming.extensionOf(fileName);
 
       companions.add(DownloadableFilesCompanion.insert(
         name: cleanName,
-        fileName: entry.fileName,
+        fileName: fileName,
         consoleId: consoleId,
         downloadUrl: urlEntry.url,
         fileSize: Value(entry.fileSize),

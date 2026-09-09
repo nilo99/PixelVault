@@ -24,11 +24,13 @@ void main() {
   });
 
   test('setProgressMessage / clearProgressMessage round trip', () {
-    holder.setProgressMessage('Processing console 1/3: GBA');
-    expect(container.read(rescanStateHolderProvider).progressMessage, 'Processing console 1/3: GBA');
+    holder.setProgressNotice(
+      const RescanNotice(RescanNoticeKind.processing, console: 'GBA', current: 1, total: 3),
+    );
+    expect(container.read(rescanStateHolderProvider).progressNotice?.console, 'GBA');
 
-    holder.clearProgressMessage();
-    expect(container.read(rescanStateHolderProvider).progressMessage, isEmpty);
+    holder.clearProgressNotice();
+    expect(container.read(rescanStateHolderProvider).progressNotice, isNull);
   });
 
   test('setTorrentFetchProgress / clearTorrentFetchProgress round trip', () {
@@ -39,61 +41,61 @@ void main() {
     expect(container.read(rescanStateHolderProvider).torrentFetchProgress, isEmpty);
   });
 
-  test('setErrorMessage sets and, given null, clears the error', () {
-    holder.setErrorMessage('Failed to scrape GBA: timeout');
-    expect(container.read(rescanStateHolderProvider).errorMessage, 'Failed to scrape GBA: timeout');
+  test('setErrorNotice sets and, given null, clears the error', () {
+    holder.setErrorNotice(const RescanNotice.literal('Failed to scrape GBA: timeout'));
+    expect(container.read(rescanStateHolderProvider).errorNotice?.text, 'Failed to scrape GBA: timeout');
 
-    holder.setErrorMessage(null);
-    expect(container.read(rescanStateHolderProvider).errorMessage, isNull);
+    holder.setErrorNotice(null);
+    expect(container.read(rescanStateHolderProvider).errorNotice, isNull);
   });
 
   group('regression: an error must survive unrelated state updates', () {
-    // `RescanState.copyWith` always overwrites `errorMessage` rather than
-    // defaulting to the current value (so `setErrorMessage(null)` can clear
+    // `RescanState.copyWith` always overwrites `errorNotice` rather than
+    // defaulting to the current value (so `setErrorNotice(null)` can clear
     // it) — every other setter must explicitly re-pass the current
-    // errorMessage or it gets silently wiped, which is exactly what
+    // errorNotice or it gets silently wiped, which is exactly what
     // happened before this was fixed: ScrapeOrchestrator sets an error
     // mid-loop, then the very next setProgressMessage/setRescanning call
     // erased it before the Sources screen ever rendered it.
-    test('setProgressMessage does not clear a previously set error', () {
-      holder.setErrorMessage('Failed to scrape GBA: timeout');
-      holder.setProgressMessage('Processing console 2/3: SNES');
-      expect(container.read(rescanStateHolderProvider).errorMessage, 'Failed to scrape GBA: timeout');
+    test('setProgressNotice does not clear a previously set error', () {
+      holder.setErrorNotice(const RescanNotice.literal('Failed to scrape GBA: timeout'));
+      holder.setProgressNotice(const RescanNotice.literal('Processing console 2/3: SNES'));
+      expect(container.read(rescanStateHolderProvider).errorNotice?.text, 'Failed to scrape GBA: timeout');
     });
 
     test('clearProgressMessage does not clear a previously set error', () {
-      holder.setErrorMessage('Failed to scrape GBA: timeout');
-      holder.clearProgressMessage();
-      expect(container.read(rescanStateHolderProvider).errorMessage, 'Failed to scrape GBA: timeout');
+      holder.setErrorNotice(const RescanNotice.literal('Failed to scrape GBA: timeout'));
+      holder.clearProgressNotice();
+      expect(container.read(rescanStateHolderProvider).errorNotice?.text, 'Failed to scrape GBA: timeout');
     });
 
     test('setTorrentFetchProgress / clearTorrentFetchProgress do not clear a previously set error', () {
-      holder.setErrorMessage('Failed to scrape GBA: timeout');
+      holder.setErrorNotice(const RescanNotice.literal('Failed to scrape GBA: timeout'));
       holder.setTorrentFetchProgress('Fetching metadata...');
-      expect(container.read(rescanStateHolderProvider).errorMessage, 'Failed to scrape GBA: timeout');
+      expect(container.read(rescanStateHolderProvider).errorNotice?.text, 'Failed to scrape GBA: timeout');
 
       holder.clearTorrentFetchProgress();
-      expect(container.read(rescanStateHolderProvider).errorMessage, 'Failed to scrape GBA: timeout');
+      expect(container.read(rescanStateHolderProvider).errorNotice?.text, 'Failed to scrape GBA: timeout');
     });
 
     test('setRescanning(false) (the finally-block cleanup after a rescan) does not clear a previously set error', () {
       holder.setRescanning(true);
-      holder.setErrorMessage('Failed to scrape GBA: timeout');
+      holder.setErrorNotice(const RescanNotice.literal('Failed to scrape GBA: timeout'));
 
       holder.setRescanning(false);
 
       final state = container.read(rescanStateHolderProvider);
       expect(state.isRescanning, isFalse);
-      expect(state.errorMessage, 'Failed to scrape GBA: timeout');
+      expect(state.errorNotice?.text, 'Failed to scrape GBA: timeout');
     });
 
-    test('an explicit setErrorMessage(null) still clears it even after other updates', () {
-      holder.setErrorMessage('Failed to scrape GBA: timeout');
-      holder.setProgressMessage('Retrying...');
+    test('an explicit setErrorNotice(null) still clears it even after other updates', () {
+      holder.setErrorNotice(const RescanNotice.literal('Failed to scrape GBA: timeout'));
+      holder.setProgressNotice(const RescanNotice.literal('Retrying...'));
 
-      holder.setErrorMessage(null);
+      holder.setErrorNotice(null);
 
-      expect(container.read(rescanStateHolderProvider).errorMessage, isNull);
+      expect(container.read(rescanStateHolderProvider).errorNotice, isNull);
     });
   });
 }

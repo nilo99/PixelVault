@@ -4,6 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../utils/error_sanitizer.dart';
+
 /// A source resolved from an install token — mirrors the JSON the
 /// companion website's `/api/resolve` endpoint returns. The actual
 /// magnet/URL is never shown on the website itself; it only ever leaves the
@@ -16,12 +18,17 @@ class ResolvedSource {
   final String contentType;
 }
 
+/// A failure resolving an install token, carried as a translatable
+/// [ErrorReason] rather than a fixed sentence — the sentence is built in the
+/// widget layer, in the user's language. Previously this held Portuguese
+/// text that the error sanitizer discarded before it ever reached the
+/// screen, so none of those messages were actually shown to anyone.
 class SourceInstallException implements Exception {
-  const SourceInstallException(this.message);
-  final String message;
+  const SourceInstallException(this.reason);
+  final ErrorReason reason;
 
   @override
-  String toString() => message;
+  String toString() => 'SourceInstallException(${reason.name})';
 }
 
 /// Talks to the companion "install source" website (see the sibling
@@ -82,7 +89,7 @@ class SourceInstallClient {
   }
 
   Future<ResolvedSource> resolve(String token) async {
-    if (token.isEmpty) throw const SourceInstallException('Link inválido: token em falta.');
+    if (token.isEmpty) throw const SourceInstallException(ErrorReason.linkExpired);
 
     try {
       final ts = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
@@ -93,20 +100,17 @@ class SourceInstallClient {
       );
 
       final data = response.data;
-      if (data == null) throw const SourceInstallException('Resposta vazia do servidor.');
+      if (data == null) throw const SourceInstallException(ErrorReason.serverResponse);
 
       final consoleId = data['consoleId'] as String?;
       final url = data['url'] as String?;
       final contentType = data['contentType'] as String? ?? 'GAME';
       if (consoleId == null || consoleId.isEmpty || url == null || url.isEmpty) {
-        throw const SourceInstallException('Resposta do servidor incompleta.');
+        throw const SourceInstallException(ErrorReason.serverResponse);
       }
       return ResolvedSource(consoleId: consoleId, url: url, contentType: contentType);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404 || e.response?.statusCode == 403) {
-        throw const SourceInstallException('Este link já não é válido.');
-      }
-      throw SourceInstallException('Falha ao contactar o servidor: ${e.message}');
+      throw SourceInstallException(classifyError(e));
     }
   }
 }

@@ -39,7 +39,12 @@ class ArchiveExtractorService {
         destinationUri: String,
         subPath: String = ""
     ): List<String> = withContext(Dispatchers.IO) {
-        val extractDir = File(context.cacheDir, "extraction_temp/${System.currentTimeMillis()}")
+        // `filesDir`, not `cacheDir` — see `TorrentHandleRegistry.torrentDataDir`.
+        // A half-extracted multi-gigabyte archive is precisely what makes
+        // Android decide to empty the cache, which would delete the files
+        // mid-extraction. The directory is removed in the `finally` below
+        // whatever happens.
+        val extractDir = File(context.filesDir, "extraction_temp/${System.currentTimeMillis()}")
         extractDir.mkdirs()
 
         try {

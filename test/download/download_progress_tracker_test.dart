@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pixelvault/core/download/download_failure.dart';
 import 'package:pixelvault/core/download/download_item.dart';
 import 'package:pixelvault/core/download/download_progress_tracker.dart';
 import 'package:pixelvault/core/download/download_status.dart';
@@ -112,16 +113,22 @@ void main() {
     });
   });
 
-  test('resetDownloadForRetry zeroes progress/speed/bytes and sets status to downloading', () {
+  test('resetDownloadForRetry keeps the progress a resume needs and clears the rest', () {
     notifier.addDownload(_item(1, 'a.zip', status: DownloadStatus.failed));
     notifier.updateDownloadProgress(1, 0.4, 1.2, 400);
+    notifier.updateDownloadStatus(1, DownloadStatus.failed,
+        failureReason: DownloadFailureReason.network);
 
     notifier.resetDownloadForRetry(1);
 
     final item = notifier.get(1)!;
-    expect(item.progress, 0);
+    // Kept: this is what tells the manager it may resume rather than
+    // overwrite, and what stops the bar snapping to 0% and jumping back.
+    expect(item.progress, 0.4);
+    expect(item.downloadedBytes, 400);
+    // Cleared: stale transient state from the previous attempt.
     expect(item.downloadSpeed, 0);
-    expect(item.downloadedBytes, 0);
+    expect(item.failureReason, isNull);
     expect(item.status, DownloadStatus.downloading);
   });
 

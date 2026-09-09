@@ -913,6 +913,216 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Falha ao adicionar a fonte: {error}'**
   String sourceInstallAddError(String error);
+
+  /// No description provided for @downloadFailureIncomplete.
+  ///
+  /// In pt, this message translates to:
+  /// **'Transferencia interrompida — o ficheiro ficou incompleto. Tenta retomar.'**
+  String get downloadFailureIncomplete;
+
+  /// No description provided for @downloadFailureInsufficientSpace.
+  ///
+  /// In pt, this message translates to:
+  /// **'Espaço insuficiente no dispositivo.'**
+  String get downloadFailureInsufficientSpace;
+
+  /// No description provided for @downloadFailureDestinationUnavailable.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pasta de destino indisponível. Escolhe-a novamente nas Definições.'**
+  String get downloadFailureDestinationUnavailable;
+
+  /// No description provided for @downloadFailureDestinationWriteFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível escrever na pasta de destino.'**
+  String get downloadFailureDestinationWriteFailed;
+
+  /// No description provided for @downloadFailureExtractionFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falha ao extrair o arquivo.'**
+  String get downloadFailureExtractionFailed;
+
+  /// No description provided for @downloadFailureTorrentUnavailable.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sem peers para este torrent. Tenta mais tarde.'**
+  String get downloadFailureTorrentUnavailable;
+
+  /// No description provided for @downloadFailureNetwork.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falha de rede.'**
+  String get downloadFailureNetwork;
+
+  /// No description provided for @downloadFailureUnknown.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falhou por um motivo desconhecido.'**
+  String get downloadFailureUnknown;
+
+  /// No description provided for @downloadsTabActive.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ativos'**
+  String get downloadsTabActive;
+
+  /// No description provided for @downloadsTabHistory.
+  ///
+  /// In pt, this message translates to:
+  /// **'Histórico'**
+  String get downloadsTabHistory;
+
+  /// No description provided for @downloadsHistoryEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ainda não concluíste nenhuma transferência.'**
+  String get downloadsHistoryEmpty;
+
+  /// No description provided for @downloadsActiveEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma transferência em curso.'**
+  String get downloadsActiveEmpty;
+
+  /// No description provided for @downloadsClearHistory.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar histórico'**
+  String get downloadsClearHistory;
+
+  /// No description provided for @downloadsSavedIn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Guardado em {path}'**
+  String downloadsSavedIn(String path);
+
+  /// No description provided for @downloadsStorageInternal.
+  ///
+  /// In pt, this message translates to:
+  /// **'Armazenamento interno'**
+  String get downloadsStorageInternal;
+
+  /// No description provided for @downloadsStorageSdCard.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cartão SD'**
+  String get downloadsStorageSdCard;
+
+  /// No description provided for @downloadsCopyPathTooltip.
+  ///
+  /// In pt, this message translates to:
+  /// **'Copiar caminho'**
+  String get downloadsCopyPathTooltip;
+
+  /// No description provided for @downloadsPathCopied.
+  ///
+  /// In pt, this message translates to:
+  /// **'Caminho copiado.'**
+  String get downloadsPathCopied;
+
+  /// No description provided for @downloadsResumeTooltip.
+  ///
+  /// In pt, this message translates to:
+  /// **'Retomar'**
+  String get downloadsResumeTooltip;
+
+  /// No description provided for @downloadsNotificationTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'PixelVault'**
+  String get downloadsNotificationTitle;
+
+  /// No description provided for @downloadsNotificationBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'A transferir…'**
+  String get downloadsNotificationBody;
+
+  /// No description provided for @downloadsInterruptedNotice.
+  ///
+  /// In pt, this message translates to:
+  /// **'Interrompido ao fechar a app — retoma de onde ficou.'**
+  String get downloadsInterruptedNotice;
+
+  /// No description provided for @libraryVariantCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =1{1 versão} other{{count} versões}}'**
+  String libraryVariantCount(num count);
+
+  /// No description provided for @libraryArchivedBadge.
+  ///
+  /// In pt, this message translates to:
+  /// **'em {format}'**
+  String libraryArchivedBadge(String format);
+
+  /// No description provided for @sourcesSyncAlreadyRunning.
+  ///
+  /// In pt, this message translates to:
+  /// **'Já há uma sincronização em curso, tenta novamente.'**
+  String get sourcesSyncAlreadyRunning;
+
+  /// No description provided for @sourcesSyncProcessing.
+  ///
+  /// In pt, this message translates to:
+  /// **'A processar consola {current}/{total}: {console}'**
+  String sourcesSyncProcessing(num current, num total, String console);
+
+  /// No description provided for @sourcesSyncRefreshing.
+  ///
+  /// In pt, this message translates to:
+  /// **'A atualizar {console}…'**
+  String sourcesSyncRefreshing(String console);
+
+  /// No description provided for @sourcesSyncFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Falha ao sincronizar {console}: {reason}'**
+  String sourcesSyncFailed(String console, String reason);
+
+  /// No description provided for @sourcesSyncTorrentUnsupported.
+  ///
+  /// In pt, this message translates to:
+  /// **'Fontes torrent ainda não estão disponíveis para {console}.'**
+  String sourcesSyncTorrentUnsupported(String console);
+
+  /// No description provided for @errorMetadataFetch.
+  ///
+  /// In pt, this message translates to:
+  /// **'não foi possível obter os metadados (tempo esgotado ou sem peers)'**
+  String get errorMetadataFetch;
+
+  /// No description provided for @errorNetwork.
+  ///
+  /// In pt, this message translates to:
+  /// **'falha de rede'**
+  String get errorNetwork;
+
+  /// No description provided for @errorLinkExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'este link já não é válido'**
+  String get errorLinkExpired;
+
+  /// No description provided for @errorServerResponse.
+  ///
+  /// In pt, this message translates to:
+  /// **'resposta inválida do servidor'**
+  String get errorServerResponse;
+
+  /// No description provided for @errorSourceUnreachable.
+  ///
+  /// In pt, this message translates to:
+  /// **'não foi possível contactar o servidor'**
+  String get errorSourceUnreachable;
+
+  /// No description provided for @errorUnexpected.
+  ///
+  /// In pt, this message translates to:
+  /// **'ocorreu um erro inesperado'**
+  String get errorUnexpected;
 }
 
 class _AppLocalizationsDelegate

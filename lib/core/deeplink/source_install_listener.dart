@@ -10,6 +10,7 @@ import '../models/url_entry.dart';
 import '../providers.dart';
 import '../router/app_router.dart';
 import '../theme/gengar_components.dart';
+import '../utils/error_messages.dart';
 import '../utils/error_sanitizer.dart';
 import 'deep_link_service.dart';
 import 'source_install_client.dart';
@@ -57,7 +58,7 @@ class _SourceInstallListenerState extends ConsumerState<SourceInstallListener> {
     try {
       resolved = await ref.read(sourceInstallClientProvider).resolve(token);
     } catch (e) {
-      await _showMessage(l10n.sourceInstallResolveError(sanitizeErrorForDisplay(e)));
+      await _showMessage(l10n.sourceInstallResolveError(_reasonText(l10n, e)));
       return;
     }
 
@@ -98,8 +99,15 @@ class _SourceInstallListenerState extends ConsumerState<SourceInstallListener> {
       );
       await _showMessage(l10n.sourceInstallSuccess(console.name));
     } catch (e) {
-      await _showMessage(l10n.sourceInstallAddError(sanitizeErrorForDisplay(e)));
+      await _showMessage(l10n.sourceInstallAddError(_reasonText(l10n, e)));
     }
+  }
+
+  /// A `SourceInstallException` already carries the classified reason;
+  /// anything else gets classified here.
+  static String _reasonText(AppLocalizations l10n, Object error) {
+    final reason = error is SourceInstallException ? error.reason : classifyError(error);
+    return errorReasonText(l10n, reason);
   }
 
   Future<void> _showMessage(String message) async {

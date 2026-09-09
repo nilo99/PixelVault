@@ -31,7 +31,10 @@ void initForegroundTask() {
     androidNotificationOptions: AndroidNotificationOptions(
       channelId: 'pixelvault_downloads',
       channelName: 'Downloads',
-      channelDescription: 'Mantém os downloads a decorrer em segundo plano.',
+      // Android reads the channel description once, at creation, before
+      // any locale is known; the visible notification title/body do follow
+      // the user's language (see `DownloadNotificationStrings`).
+      channelDescription: 'PixelVault downloads',
       onlyAlertOnce: true,
     ),
     iosNotificationOptions: const IOSNotificationOptions(),

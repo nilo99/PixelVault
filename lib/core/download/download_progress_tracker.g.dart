@@ -11,6 +11,10 @@ part of 'download_progress_tracker.dart';
 /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
 /// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
 /// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+///
+/// This is the in-memory view; `DownloadManager` mirrors every change it
+/// makes here into the `downloads` table, and seeds it back through
+/// [replaceAll] on startup so the queue and history survive a restart.
 
 @ProviderFor(DownloadProgressTrackerNotifier)
 final downloadProgressTrackerProvider =
@@ -19,12 +23,20 @@ final downloadProgressTrackerProvider =
 /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
 /// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
 /// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+///
+/// This is the in-memory view; `DownloadManager` mirrors every change it
+/// makes here into the `downloads` table, and seeds it back through
+/// [replaceAll] on startup so the queue and history survive a restart.
 final class DownloadProgressTrackerNotifierProvider
     extends
         $NotifierProvider<DownloadProgressTrackerNotifier, List<DownloadItem>> {
   /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
   /// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
   /// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+  ///
+  /// This is the in-memory view; `DownloadManager` mirrors every change it
+  /// makes here into the `downloads` table, and seeds it back through
+  /// [replaceAll] on startup so the queue and history survive a restart.
   DownloadProgressTrackerNotifierProvider._()
     : super(
         from: null,
@@ -53,11 +65,15 @@ final class DownloadProgressTrackerNotifierProvider
 }
 
 String _$downloadProgressTrackerNotifierHash() =>
-    r'd87e56902645597bc37242d6a6a21a85b5b87565';
+    r'0d4049af72730d04c5546a4dd1b96ee28a1053ba';
 
 /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
 /// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
 /// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+///
+/// This is the in-memory view; `DownloadManager` mirrors every change it
+/// makes here into the `downloads` table, and seeds it back through
+/// [replaceAll] on startup so the queue and history survive a restart.
 
 abstract class _$DownloadProgressTrackerNotifier
     extends $Notifier<List<DownloadItem>> {

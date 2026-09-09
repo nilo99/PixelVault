@@ -1,6 +1,5 @@
 {
   "@@locale": "en",
-
   "commonCancel": "Cancel",
   "commonAdd": "Add",
   "commonChange": "Change",
@@ -9,15 +8,12 @@
   "commonGenericError": "Error: {error}",
   "routerPageNotFoundTitle": "Page not found",
   "routerPageNotFoundAction": "Back to platforms",
-
   "navBarPlatforms": "Platforms",
   "navBarDownloads": "Downloads",
   "navBarSources": "Sources",
   "navBarSettings": "Settings",
-
   "aboutTitle": "About",
   "aboutBody": "Personal ROM library and download manager.",
-
   "onboardingSkip": "Skip",
   "onboardingNext": "Next",
   "onboardingStart": "Get started",
@@ -37,7 +33,6 @@
   "onboardingStep4Title": "Ready to play",
   "onboardingStep4Description": "Organize files by console, choose a destination folder and open them directly in your favorite emulator. Have fun!",
   "onboardingStep4Highlight1": "favorite emulator",
-
   "sourcesEyebrow": "SCRAPING",
   "sourcesTitle": "Sources",
   "sourcesUnsyncedBanner": "{count, plural, =1{1 console has sources but is still unsynced.} other{{count} consoles have sources but are still unsynced.}}",
@@ -59,21 +54,17 @@
   "sourcesAddConsoleError": "Failed to add console: {error}",
   "sourcesAddSourceError": "Failed to add source: {error}",
   "sourcesRemoveSourceError": "Failed to remove source: {error}",
-
   "addManufacturerDialogTitle": "New manufacturer",
   "addManufacturerDialogIdLabel": "ID (e.g. nintendo)",
   "addManufacturerDialogNameLabel": "Name (e.g. Nintendo)",
-
   "addConsoleDialogTitle": "New console",
   "addConsoleDialogIdLabel": "ID (e.g. gameboy_advance)",
   "addConsoleDialogNameLabel": "Name (e.g. Game Boy Advance)",
-
   "addUrlDialogTitle": "New source",
   "addUrlDialogUrlLabel": "URL (http://…) or magnet:?…",
   "addUrlDialogContentTypeLabel": "Content type",
   "addUrlDialogApplyTo": "Apply to ({count} selected):",
   "addUrlDialogSubmitButton": "Add and sync",
-
   "settingsEyebrow": "SYSTEM",
   "settingsTitle": "Settings",
   "settingsStorageSection": "STORAGE",
@@ -96,7 +87,6 @@
   "settingsAutoUnzipTitle": "Automatic extraction",
   "settingsAutoUnzipSubtitle": ".zip .7z .rar .tar .gz .xz · deletes the archive",
   "settingsUsesMainFolder": "Uses the main folder",
-
   "downloadsEyebrow": "QUEUE",
   "downloadsTitle": "Downloads",
   "downloadsActiveLabel": "Active",
@@ -116,7 +106,6 @@
   "downloadsRetryTooltip": "Retry",
   "downloadsRemoveTooltip": "Remove",
   "downloadsRemoveFromListTooltip": "Remove from list",
-
   "libraryDefaultTitle": "Library",
   "libraryHintSearch": "Search roms…",
   "libraryFiltersChip": "Filters",
@@ -129,7 +118,6 @@
   "libraryNoResults": "No results.\nAdd a source in the Sources tab and rescan.",
   "libraryMetaLabel": "{count} files · {size}",
   "libraryDownloadStartedSnackbar": "Download of \"{name}\" started.",
-
   "platformSelectSeedError": "Error loading consoles: {error}",
   "platformSelectEyebrow": "CATALOG",
   "platformSelectTitle": "Platforms",
@@ -140,12 +128,104 @@
   "platformSelectGlobalLibraryTitle": "Global library",
   "platformSelectGlobalLibrarySubtitle": "Every game from every console",
   "platformSelectConsoleSummary": "{count, plural, =1{1 game} other{{count} games}} · {size}",
-
   "sourceInstallResolveError": "Could not install the source: {error}",
   "sourceInstallUnsupportedConsole": "This console isn't supported in this version of the app.",
   "sourceInstallAlreadyInstalled": "This source is already installed on \"{name}\".",
   "sourceInstallConfirmTitle": "Add source",
   "sourceInstallConfirmBody": "Add a new source to \"{name}\"?",
   "sourceInstallSuccess": "Source added to \"{name}\". Go to Sources to sync it.",
-  "sourceInstallAddError": "Failed to add the source: {error}"
+  "sourceInstallAddError": "Failed to add the source: {error}",
+  "downloadFailureIncomplete": "Transfer cut short — the file is incomplete. Try resuming.",
+  "downloadFailureInsufficientSpace": "Not enough space on the device.",
+  "downloadFailureDestinationUnavailable": "Destination folder unavailable. Pick it again in Settings.",
+  "downloadFailureDestinationWriteFailed": "Could not write to the destination folder.",
+  "downloadFailureExtractionFailed": "Archive extraction failed.",
+  "downloadFailureTorrentUnavailable": "No peers for this torrent. Try again later.",
+  "downloadFailureNetwork": "Network failure.",
+  "downloadFailureUnknown": "Failed for an unknown reason.",
+  "downloadsTabActive": "Active",
+  "downloadsTabHistory": "History",
+  "downloadsHistoryEmpty": "You haven't finished any downloads yet.",
+  "downloadsActiveEmpty": "No downloads in progress.",
+  "downloadsClearHistory": "Clear history",
+  "downloadsSavedIn": "Saved in {path}",
+  "@downloadsSavedIn": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsStorageInternal": "Internal storage",
+  "downloadsStorageSdCard": "SD card",
+  "downloadsCopyPathTooltip": "Copy path",
+  "downloadsPathCopied": "Path copied.",
+  "downloadsResumeTooltip": "Resume",
+  "downloadsNotificationTitle": "PixelVault",
+  "downloadsNotificationBody": "Downloading…",
+  "downloadsInterruptedNotice": "Interrupted when the app closed — resumes where it left off.",
+  "libraryVariantCount": "{count, plural, =1{1 version} other{{count} versions}}",
+  "@libraryVariantCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "libraryArchivedBadge": "in {format}",
+  "@libraryArchivedBadge": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesSyncAlreadyRunning": "A sync is already running, try again.",
+  "sourcesSyncProcessing": "Processing console {current}/{total}: {console}",
+  "@sourcesSyncProcessing": {
+    "placeholders": {
+      "current": {
+        "type": "num"
+      },
+      "total": {
+        "type": "num"
+      },
+      "console": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesSyncRefreshing": "Refreshing {console}…",
+  "@sourcesSyncRefreshing": {
+    "placeholders": {
+      "console": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesSyncFailed": "Failed to sync {console}: {reason}",
+  "@sourcesSyncFailed": {
+    "placeholders": {
+      "console": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesSyncTorrentUnsupported": "Torrent sources are not available yet for {console}.",
+  "@sourcesSyncTorrentUnsupported": {
+    "placeholders": {
+      "console": {
+        "type": "String"
+      }
+    }
+  },
+  "errorMetadataFetch": "metadata fetch failed (timed out or no peers found)",
+  "errorNetwork": "network failure",
+  "errorLinkExpired": "this link is no longer valid",
+  "errorServerResponse": "invalid server response",
+  "errorSourceUnreachable": "could not reach the server",
+  "errorUnexpected": "an unexpected error occurred"
 }

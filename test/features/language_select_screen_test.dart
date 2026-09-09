@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:pixelvault/core/settings/settings_repository.dart';
 import 'package:pixelvault/features/language_select/language_select_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  setUpAll(() {
-    GoogleFonts.config.allowRuntimeFetching = false;
-  });
 
   Future<ProviderContainer> pumpScreen(WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});

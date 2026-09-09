@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/settings/settings_repository.dart';
 import '../../core/theme/gengar_colors.dart';
+import '../../core/theme/gengar_typography.dart';
 import '../../core/theme/gengar_components.dart';
 
 class SupportedLocale {
@@ -69,7 +69,7 @@ class LanguageSelectScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 2),
                     child: Text(
                       line,
-                      style: GoogleFonts.manrope(
+                      style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: GengarColors.onBackgroundMuted,
@@ -125,7 +125,7 @@ class _LanguageRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   locale.ownName,
-                  style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: GengarColors.onBackground),
+                  style: TextStyle(fontFamily: GengarTypography.manropeFamily, fontSize: 16, fontWeight: FontWeight.w700, color: GengarColors.onBackground),
                 ),
               ),
               const Icon(Icons.chevron_right_rounded, size: 20, color: GengarColors.accentLight),

@@ -1,6 +1,5 @@
 {
   "@@locale": "fr",
-
   "commonCancel": "Annuler",
   "commonAdd": "Ajouter",
   "commonChange": "Modifier",
@@ -9,15 +8,12 @@
   "commonGenericError": "Erreur : {error}",
   "routerPageNotFoundTitle": "Page introuvable",
   "routerPageNotFoundAction": "Retour aux plateformes",
-
   "navBarPlatforms": "Plateformes",
   "navBarDownloads": "Téléchargements",
   "navBarSources": "Sources",
   "navBarSettings": "Réglages",
-
   "aboutTitle": "À propos",
   "aboutBody": "Application personnelle de bibliothèque et de téléchargement de ROMs.",
-
   "onboardingSkip": "Passer",
   "onboardingNext": "Suivant",
   "onboardingStart": "Commencer",
@@ -37,7 +33,6 @@
   "onboardingStep4Title": "Prêt à jouer",
   "onboardingStep4Description": "Organise les fichiers par console, choisis le dossier de destination et ouvre-les directement dans ton émulateur préféré. Bon jeu !",
   "onboardingStep4Highlight1": "émulateur préféré",
-
   "sourcesEyebrow": "SCRAPING",
   "sourcesTitle": "Sources",
   "sourcesUnsyncedBanner": "{count, plural, =0{0 consoles ont des sources mais ne sont pas encore synchronisées.} =1{1 console a des sources mais n'est pas encore synchronisée.} other{{count} consoles ont des sources mais ne sont pas encore synchronisées.}}",
@@ -59,21 +54,17 @@
   "sourcesAddConsoleError": "Échec de l'ajout de la console : {error}",
   "sourcesAddSourceError": "Échec de l'ajout de la source : {error}",
   "sourcesRemoveSourceError": "Échec de la suppression de la source : {error}",
-
   "addManufacturerDialogTitle": "Nouveau fabricant",
   "addManufacturerDialogIdLabel": "ID (ex : nintendo)",
   "addManufacturerDialogNameLabel": "Nom (ex : Nintendo)",
-
   "addConsoleDialogTitle": "Nouvelle console",
   "addConsoleDialogIdLabel": "ID (ex : gameboy_advance)",
   "addConsoleDialogNameLabel": "Nom (ex : Game Boy Advance)",
-
   "addUrlDialogTitle": "Nouvelle source",
   "addUrlDialogUrlLabel": "URL (http://…) ou magnet:?…",
   "addUrlDialogContentTypeLabel": "Type de contenu",
   "addUrlDialogApplyTo": "Appliquer à ({count} sélectionnée{count, plural, =0{s} =1{} other{s}}) :",
   "addUrlDialogSubmitButton": "Ajouter et synchroniser",
-
   "settingsEyebrow": "SYSTÈME",
   "settingsTitle": "Réglages",
   "settingsStorageSection": "STOCKAGE",
@@ -96,7 +87,6 @@
   "settingsAutoUnzipTitle": "Extraction automatique",
   "settingsAutoUnzipSubtitle": ".zip .7z .rar .tar .gz .xz · supprime l'archive",
   "settingsUsesMainFolder": "Utilise le dossier principal",
-
   "downloadsEyebrow": "FILE",
   "downloadsTitle": "Téléchargements",
   "downloadsActiveLabel": "Actifs",
@@ -116,7 +106,6 @@
   "downloadsRetryTooltip": "Réessayer",
   "downloadsRemoveTooltip": "Supprimer",
   "downloadsRemoveFromListTooltip": "Retirer de la liste",
-
   "libraryDefaultTitle": "Bibliothèque",
   "libraryHintSearch": "Rechercher des roms…",
   "libraryFiltersChip": "Filtres",
@@ -129,7 +118,6 @@
   "libraryNoResults": "Aucun résultat.\nAjoute une source dans l'onglet Sources et relance l'analyse.",
   "libraryMetaLabel": "{count} fichiers · {size}",
   "libraryDownloadStartedSnackbar": "Téléchargement de « {name} » démarré.",
-
   "platformSelectSeedError": "Erreur lors du chargement des consoles : {error}",
   "platformSelectEyebrow": "CATALOGUE",
   "platformSelectTitle": "Plateformes",
@@ -140,12 +128,104 @@
   "platformSelectGlobalLibraryTitle": "Bibliothèque globale",
   "platformSelectGlobalLibrarySubtitle": "Tous les jeux de toutes les consoles",
   "platformSelectConsoleSummary": "{count, plural, =0{0 jeux} =1{1 jeu} other{{count} jeux}} · {size}",
-
   "sourceInstallResolveError": "Impossible d'installer la source : {error}",
   "sourceInstallUnsupportedConsole": "Cette console n'est pas prise en charge dans cette version de l'app.",
   "sourceInstallAlreadyInstalled": "Cette source est déjà installée sur « {name} ».",
   "sourceInstallConfirmTitle": "Ajouter une source",
   "sourceInstallConfirmBody": "Ajouter une nouvelle source à « {name} » ?",
   "sourceInstallSuccess": "Source ajoutée à « {name} ». Va dans Sources pour la synchroniser.",
-  "sourceInstallAddError": "Échec de l'ajout de la source : {error}"
+  "sourceInstallAddError": "Échec de l'ajout de la source : {error}",
+  "downloadFailureIncomplete": "Transfert interrompu — le fichier est incomplet. Essaie de reprendre.",
+  "downloadFailureInsufficientSpace": "Espace insuffisant sur l'appareil.",
+  "downloadFailureDestinationUnavailable": "Dossier de destination indisponible. Choisis-le à nouveau dans les Réglages.",
+  "downloadFailureDestinationWriteFailed": "Impossible d'écrire dans le dossier de destination.",
+  "downloadFailureExtractionFailed": "Échec de l'extraction de l'archive.",
+  "downloadFailureTorrentUnavailable": "Aucun pair pour ce torrent. Réessaie plus tard.",
+  "downloadFailureNetwork": "Échec réseau.",
+  "downloadFailureUnknown": "Échec pour une raison inconnue.",
+  "downloadsTabActive": "Actifs",
+  "downloadsTabHistory": "Historique",
+  "downloadsHistoryEmpty": "Tu n'as encore terminé aucun téléchargement.",
+  "downloadsActiveEmpty": "Aucun téléchargement en cours.",
+  "downloadsClearHistory": "Effacer l'historique",
+  "downloadsSavedIn": "Enregistré dans {path}",
+  "@downloadsSavedIn": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsStorageInternal": "Stockage interne",
+  "downloadsStorageSdCard": "Carte SD",
+  "downloadsCopyPathTooltip": "Copier le chemin",
+  "downloadsPathCopied": "Chemin copié.",
+  "downloadsResumeTooltip": "Reprendre",
+  "downloadsNotificationTitle": "PixelVault",
+  "downloadsNotificationBody": "Téléchargement…",
+  "downloadsInterruptedNotice": "Interrompu à la fermeture de l'app — reprend où il s'est arrêté.",
+  "libraryVariantCount": "{count, plural, =1{1 version} other{{count} versions}}",
+  "@libraryVariantCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "libraryArchivedBadge": "en {format}",
+  "@libraryArchivedBadge": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesSyncAlreadyRunning": "Une synchronisation est déjà en cours, réessaie.",
+  "sourcesSyncProcessing": "Traitement de la console {current}/{total} : {console}",
+  "@sourcesSyncProcessing": {
+    "placeholders": {
+      "current": {
+        "type": "num"
+      },
+      "total": {
+        "type": "num"
+      },
+      "console": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesSyncRefreshing": "Actualisation de {console}…",
+  "@sourcesSyncRefreshing": {
+    "placeholders": {
+      "console": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesSyncFailed": "Échec de la synchronisation de {console} : {reason}",
+  "@sourcesSyncFailed": {
+    "placeholders": {
+      "console": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesSyncTorrentUnsupported": "Les sources torrent ne sont pas encore disponibles pour {console}.",
+  "@sourcesSyncTorrentUnsupported": {
+    "placeholders": {
+      "console": {
+        "type": "String"
+      }
+    }
+  },
+  "errorMetadataFetch": "échec de récupération des métadonnées (délai dépassé ou aucun pair)",
+  "errorNetwork": "échec réseau",
+  "errorLinkExpired": "ce lien n'est plus valide",
+  "errorServerResponse": "réponse invalide du serveur",
+  "errorSourceUnreachable": "impossible de joindre le serveur",
+  "errorUnexpected": "une erreur inattendue s'est produite"
 }

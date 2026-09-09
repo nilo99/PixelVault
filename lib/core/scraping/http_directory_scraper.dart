@@ -6,6 +6,7 @@ import 'package:html/parser.dart' as html_parser;
 import '../db/daos/downloadable_file_repository.dart';
 import '../db/database.dart';
 import '../models/content_type.dart';
+import 'file_naming.dart';
 import 'file_parsing.dart';
 import 'file_size_utils.dart';
 import 'scraping_constants.dart';
@@ -118,18 +119,21 @@ class HttpDirectoryScraper {
           ? ScrapingConstants.defaultFileSize
           : sizeText;
 
-      // Strip query string/fragment before computing the extension — a
-      // listing link like "rom.zip?dl=1" would otherwise yield ".zip?dl=1".
-      final hrefPath = href.split('?').first.split('#').first;
-      final fileExtension = hrefPath.contains('.') ? '.${hrefPath.split('.').last}' : '';
+      // `href` is a link target, not a file name — it can carry a query
+      // string, nested path segments or even a full absolute URL. Store the
+      // bare, filesystem-safe name (and an extension derived from *that*),
+      // while `downloadUrl` keeps resolving against the raw href. See
+      // `FileNaming` for what went wrong when the raw href was stored here.
+      final resolvedName = FileNaming.fileNameFromHref(href);
+      final fileName = resolvedName.isEmpty ? FileNaming.fallbackName(0, displayName) : resolvedName;
 
       companions.add(DownloadableFilesCompanion.insert(
         name: cleanName,
-        fileName: href,
+        fileName: fileName,
         consoleId: consoleId,
         downloadUrl: FileParsing.buildDownloadUrl(baseUrl, href),
         fileSize: Value(FileSizeUtils.parseFileSize(fileSizeText)),
-        fileExtension: Value(fileExtension),
+        fileExtension: Value(FileNaming.extensionOf(fileName)),
       ));
 
       final rowTags = [...tags, FileParsing.normalizeTag(contentType.toJson())];

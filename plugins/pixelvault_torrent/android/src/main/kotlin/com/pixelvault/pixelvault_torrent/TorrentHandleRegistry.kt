@@ -102,7 +102,31 @@ class TorrentHandleRegistry(private val context: Context) {
 
     fun session(): SessionManager = session
 
-    val torrentDataDir: File get() = File(context.cacheDir, "torrent_data").apply { mkdirs() }
+    /**
+     * Where libtorrent writes pieces as they arrive.
+     *
+     * `filesDir`, not `cacheDir`: Android empties the cache directory
+     * whenever the device runs low on storage, and a multi-gigabyte disc
+     * image is exactly the download that triggers that — the partially
+     * downloaded data would vanish underneath the running torrent with no
+     * error surfaced anywhere. Files here are removed explicitly once a
+     * download is moved to its destination or cancelled, and the app sets
+     * `allowBackup="false"`, so nothing accumulates or gets backed up.
+     */
+    val torrentDataDir: File get() = File(context.filesDir, "torrent_data").apply { mkdirs() }
+
+    /**
+     * Best-effort removal of data left in the old cache location by a build
+     * that predates the move above, so it does not sit there unreferenced.
+     */
+    fun purgeLegacyCacheDir() {
+        try {
+            val legacy = File(context.cacheDir, "torrent_data")
+            if (legacy.exists()) legacy.deleteRecursively()
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not purge legacy torrent cache: ${e.message}")
+        }
+    }
 
     private suspend fun fetchMetadata(uri: String): TorrentHandle =
         withContext(Dispatchers.IO) {

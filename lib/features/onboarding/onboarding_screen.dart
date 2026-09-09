@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/settings/settings_repository.dart';
 import '../../core/theme/gengar_colors.dart';
@@ -107,7 +106,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   const SizedBox(width: 9),
                   Text(
                     'PIXELVAULT',
-                    style: GoogleFonts.manrope(
+                    style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       color: GengarColors.onBackground,
@@ -119,7 +118,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onTap: _completeOnboarding,
                     child: Text(
                       l10n.onboardingSkip,
-                      style: GoogleFonts.manrope(
+                      style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: GengarColors.onBackgroundMuted,
@@ -192,7 +191,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         children: [
                           Text(
                             _currentPage == steps.length - 1 ? l10n.onboardingStart : l10n.onboardingNext,
-                            style: GoogleFonts.manrope(
+                            style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: GengarColors.onPrimary,
@@ -280,7 +279,7 @@ class _OnboardingPage extends StatelessWidget {
           // ─── Title ───
           Text(
             step.title,
-            style: GoogleFonts.manrope(
+            style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
               fontSize: 26,
               fontWeight: FontWeight.w800,
               color: GengarColors.onBackground,
@@ -302,7 +301,7 @@ class _OnboardingPage extends StatelessWidget {
     if (highlights.isEmpty) {
       return Text(
         text,
-        style: GoogleFonts.manrope(
+        style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: GengarColors.onBackgroundMuted,
@@ -341,7 +340,7 @@ class _OnboardingPage extends StatelessWidget {
       // Add the highlighted word
       spans.add(TextSpan(
         text: earliestWord,
-        style: GoogleFonts.manrope(
+        style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: GengarColors.accentLight,
@@ -354,7 +353,7 @@ class _OnboardingPage extends StatelessWidget {
 
     return RichText(
       text: TextSpan(
-        style: GoogleFonts.manrope(
+        style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: GengarColors.onBackgroundMuted,

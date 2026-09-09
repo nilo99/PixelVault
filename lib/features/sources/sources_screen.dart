@@ -7,6 +7,7 @@ import '../../core/models/console_x.dart';
 import '../../core/models/url_entry.dart';
 import '../../core/providers.dart';
 import '../../core/state/rescan_state.dart';
+import '../../core/utils/error_messages.dart';
 import '../../core/theme/gengar_colors.dart';
 import '../../core/utils/error_sanitizer.dart';
 import '../../core/theme/gengar_components.dart';
@@ -47,20 +48,24 @@ class SourcesScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            if (rescan.isRescanning || rescan.progressMessage.isNotEmpty)
+            if (rescan.isRescanning || rescan.hasProgress)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                  child: _SyncBanner(message: rescan.progressMessage),
+                  child: _SyncBanner(
+                    message: rescan.progressNotice == null
+                        ? ''
+                        : rescanNoticeText(l10n, rescan.progressNotice!),
+                  ),
                 ),
               ),
-            if (rescan.errorMessage != null)
+            if (rescan.errorNotice != null)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                   child: _ErrorBanner(
-                    message: rescan.errorMessage!,
-                    onDismiss: () => ref.read(rescanStateHolderProvider.notifier).setErrorMessage(null),
+                    message: rescanNoticeText(l10n, rescan.errorNotice!),
+                    onDismiss: () => ref.read(rescanStateHolderProvider.notifier).setErrorNotice(null),
                   ),
                 ),
               ),
@@ -456,7 +461,9 @@ class _UrlRow extends ConsumerWidget {
               } catch (e) {
                 ref
                     .read(rescanStateHolderProvider.notifier)
-                    .setErrorMessage(l10n.sourcesRemoveSourceError(sanitizeErrorForDisplay(e)));
+                    .setErrorNotice(RescanNotice.literal(
+                      l10n.sourcesRemoveSourceError(errorReasonText(l10n, classifyError(e))),
+                    ));
               }
             },
           ),
@@ -626,7 +633,9 @@ void showAddManufacturerDialog(BuildContext context, WidgetRef ref) {
         } catch (e) {
           ref
               .read(rescanStateHolderProvider.notifier)
-              .setErrorMessage(l10n.sourcesAddManufacturerError(sanitizeErrorForDisplay(e)));
+              .setErrorNotice(RescanNotice.literal(
+                      l10n.sourcesAddManufacturerError(errorReasonText(l10n, classifyError(e))),
+                    ));
           return;
         }
         if (context.mounted) Navigator.of(context).pop();
@@ -661,7 +670,9 @@ void showAddConsoleDialog(BuildContext context, WidgetRef ref, String manufactur
         } catch (e) {
           ref
               .read(rescanStateHolderProvider.notifier)
-              .setErrorMessage(l10n.sourcesAddConsoleError(sanitizeErrorForDisplay(e)));
+              .setErrorNotice(RescanNotice.literal(
+                      l10n.sourcesAddConsoleError(errorReasonText(l10n, classifyError(e))),
+                    ));
           return;
         }
         if (context.mounted) Navigator.of(context).pop();
@@ -705,7 +716,9 @@ void showAddUrlDialog(BuildContext context, WidgetRef ref, Console initialConsol
           try {
             await catalog.addUrlToConsoles(selected.toList(), entry);
           } catch (e) {
-            ref.read(rescanStateHolderProvider.notifier).setErrorMessage(l10n.sourcesAddSourceError(e.toString()));
+            ref.read(rescanStateHolderProvider.notifier).setErrorNotice(RescanNotice.literal(
+              l10n.sourcesAddSourceError(errorReasonText(l10n, classifyError(e))),
+            ));
             return;
           }
           if (context.mounted) Navigator.of(context).pop();

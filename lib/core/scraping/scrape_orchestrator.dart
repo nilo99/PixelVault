@@ -39,7 +39,9 @@ class ScrapeOrchestrator {
         if (urlEntry.isTorrent) {
           final scraper = torrentScraper;
           if (scraper == null) {
-            rescan.setErrorMessage('Torrent sources are not available yet for ${console.name}.');
+            rescan.setErrorNotice(
+              RescanNotice(RescanNoticeKind.torrentUnsupported, console: console.name),
+            );
             updatedUrls.add(urlEntry.copyWith(clearLastSyncedAt: true));
             continue;
           }
@@ -57,7 +59,11 @@ class ScrapeOrchestrator {
         }
         updatedUrls.add(urlEntry.copyWith(lastSyncedAt: DateTime.now()));
       } catch (e) {
-        rescan.setErrorMessage('Failed to scrape ${console.name}: ${sanitizeErrorForDisplay(e)}');
+        rescan.setErrorNotice(RescanNotice(
+          RescanNoticeKind.scrapeFailed,
+          console: console.name,
+          reason: classifyError(e),
+        ));
         updatedUrls.add(urlEntry.copyWith(clearLastSyncedAt: true));
       }
     }
@@ -74,51 +80,46 @@ class ScrapeOrchestrator {
   /// one console's files gone, not the whole catalog.
   Future<void> rescanAll() async {
     if (rescan.isRescanning) {
-      rescan.setErrorMessage('Já há uma sincronização em curso, tenta novamente.');
+      rescan.setErrorNotice(const RescanNotice(RescanNoticeKind.alreadyRunning));
       return;
     }
     rescan.setRescanning(true);
     try {
-      // ignore: avoid_print
-      print('DIAG: before watchAllConsoles().first');
       final consoles = await catalog.watchAllConsoles().first;
-      // ignore: avoid_print
-      print('DIAG: after watchAllConsoles().first, count=${consoles.length}');
       var processed = 0;
       for (final console in consoles) {
         processed++;
-        rescan.setProgressMessage(
-          'Processing console $processed/${consoles.length}: ${console.name}',
-        );
-        // ignore: avoid_print
-        print('DIAG: before deleteFilesByConsoleId ${console.id}');
+        rescan.setProgressNotice(RescanNotice(
+          RescanNoticeKind.processing,
+          console: console.name,
+          current: processed,
+          total: consoles.length,
+        ));
         await files.deleteFilesByConsoleId(console.id);
-        // ignore: avoid_print
-        print('DIAG: after deleteFilesByConsoleId ${console.id}');
         final updatedUrls = await _scrapeConsole(console);
         await catalog.updateConsoleUrls(console.id, updatedUrls);
       }
     } finally {
       rescan.setRescanning(false);
-      rescan.clearProgressMessage();
+      rescan.clearProgressNotice();
       rescan.clearTorrentFetchProgress();
     }
   }
 
   Future<void> refreshConsole(Console console) async {
     if (rescan.isRescanning) {
-      rescan.setErrorMessage('Já há uma sincronização em curso, tenta novamente.');
+      rescan.setErrorNotice(const RescanNotice(RescanNoticeKind.alreadyRunning));
       return;
     }
     rescan.setRescanning(true);
     try {
-      rescan.setProgressMessage('Refreshing ${console.name}...');
+      rescan.setProgressNotice(RescanNotice(RescanNoticeKind.refreshing, console: console.name));
       await files.deleteFilesByConsoleId(console.id);
       final updatedUrls = await _scrapeConsole(console);
       await catalog.updateConsoleUrls(console.id, updatedUrls);
     } finally {
       rescan.setRescanning(false);
-      rescan.clearProgressMessage();
+      rescan.clearProgressNotice();
       rescan.clearTorrentFetchProgress();
     }
   }

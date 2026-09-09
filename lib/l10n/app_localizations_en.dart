@@ -509,4 +509,138 @@ class AppLocalizationsEn extends AppLocalizations {
   String sourceInstallAddError(String error) {
     return 'Failed to add the source: $error';
   }
+
+  @override
+  String get downloadFailureIncomplete =>
+      'Transfer cut short — the file is incomplete. Try resuming.';
+
+  @override
+  String get downloadFailureInsufficientSpace =>
+      'Not enough space on the device.';
+
+  @override
+  String get downloadFailureDestinationUnavailable =>
+      'Destination folder unavailable. Pick it again in Settings.';
+
+  @override
+  String get downloadFailureDestinationWriteFailed =>
+      'Could not write to the destination folder.';
+
+  @override
+  String get downloadFailureExtractionFailed => 'Archive extraction failed.';
+
+  @override
+  String get downloadFailureTorrentUnavailable =>
+      'No peers for this torrent. Try again later.';
+
+  @override
+  String get downloadFailureNetwork => 'Network failure.';
+
+  @override
+  String get downloadFailureUnknown => 'Failed for an unknown reason.';
+
+  @override
+  String get downloadsTabActive => 'Active';
+
+  @override
+  String get downloadsTabHistory => 'History';
+
+  @override
+  String get downloadsHistoryEmpty =>
+      'You haven\'t finished any downloads yet.';
+
+  @override
+  String get downloadsActiveEmpty => 'No downloads in progress.';
+
+  @override
+  String get downloadsClearHistory => 'Clear history';
+
+  @override
+  String downloadsSavedIn(String path) {
+    return 'Saved in $path';
+  }
+
+  @override
+  String get downloadsStorageInternal => 'Internal storage';
+
+  @override
+  String get downloadsStorageSdCard => 'SD card';
+
+  @override
+  String get downloadsCopyPathTooltip => 'Copy path';
+
+  @override
+  String get downloadsPathCopied => 'Path copied.';
+
+  @override
+  String get downloadsResumeTooltip => 'Resume';
+
+  @override
+  String get downloadsNotificationTitle => 'PixelVault';
+
+  @override
+  String get downloadsNotificationBody => 'Downloading…';
+
+  @override
+  String get downloadsInterruptedNotice =>
+      'Interrupted when the app closed — resumes where it left off.';
+
+  @override
+  String libraryVariantCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count versions',
+      one: '1 version',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String libraryArchivedBadge(String format) {
+    return 'in $format';
+  }
+
+  @override
+  String get sourcesSyncAlreadyRunning =>
+      'A sync is already running, try again.';
+
+  @override
+  String sourcesSyncProcessing(num current, num total, String console) {
+    return 'Processing console $current/$total: $console';
+  }
+
+  @override
+  String sourcesSyncRefreshing(String console) {
+    return 'Refreshing $console…';
+  }
+
+  @override
+  String sourcesSyncFailed(String console, String reason) {
+    return 'Failed to sync $console: $reason';
+  }
+
+  @override
+  String sourcesSyncTorrentUnsupported(String console) {
+    return 'Torrent sources are not available yet for $console.';
+  }
+
+  @override
+  String get errorMetadataFetch =>
+      'metadata fetch failed (timed out or no peers found)';
+
+  @override
+  String get errorNetwork => 'network failure';
+
+  @override
+  String get errorLinkExpired => 'this link is no longer valid';
+
+  @override
+  String get errorServerResponse => 'invalid server response';
+
+  @override
+  String get errorSourceUnreachable => 'could not reach the server';
+
+  @override
+  String get errorUnexpected => 'an unexpected error occurred';
 }

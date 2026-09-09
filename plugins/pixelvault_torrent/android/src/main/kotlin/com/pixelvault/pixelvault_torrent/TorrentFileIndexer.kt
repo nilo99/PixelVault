@@ -22,30 +22,15 @@ class TorrentFileIndexer {
         val files = info.files()
         val results = mutableListOf<TorrentFileEntry>()
 
-        val normalizedFolders = allowedFolders.map { it.replace('\\', '/').lowercase().trimEnd('/') }
+        val normalizedFolders = normalizeFolders(allowedFolders)
 
         for (i in 0 until files.numFiles()) {
             val rawPath = files.filePath(i)
             val size = files.fileSize(i)
 
-            if (size == 0L) continue
-            if (rawPath.isBlank()) continue
+            if (!shouldIndex(rawPath, size, normalizedFolders)) continue
 
-            val fileName = rawPath.substringAfterLast('/').trim()
-            if (fileName.startsWith(".") || fileName.isBlank()) continue
-
-            val ext = ".${fileName.substringAfterLast('.', "")}".lowercase()
-            if (ext in BLOCKED_EXTENSIONS) continue
-
-            if (normalizedFolders.isNotEmpty()) {
-                val normalizedPath = rawPath.replace('\\', '/').lowercase()
-                val inAllowedFolder = normalizedFolders.any { folder ->
-                    normalizedPath.startsWith("$folder/") || normalizedPath.contains("/$folder/")
-                }
-                if (!inAllowedFolder) continue
-            }
-
-            results.add(TorrentFileEntry(fileName, i, size, magnet))
+            results.add(TorrentFileEntry(fileNameOf(rawPath), i, size, magnet))
         }
 
         Log.i(
@@ -58,6 +43,36 @@ class TorrentFileIndexer {
 
     companion object {
         private const val TAG = "TorrentFileIndexer"
+
+        /**
+         * The whole per-file decision, pulled out of [index] so it can be
+         * unit-tested without a live libtorrent `TorrentInfo` (which needs
+         * the native library and so cannot exist in a JVM test).
+         */
+        fun shouldIndex(rawPath: String, size: Long, normalizedFolders: List<String>): Boolean {
+            if (size == 0L) return false
+            if (rawPath.isBlank()) return false
+
+            val fileName = fileNameOf(rawPath)
+            if (fileName.startsWith(".") || fileName.isBlank()) return false
+
+            val ext = ".${fileName.substringAfterLast('.', "")}".lowercase()
+            if (ext in BLOCKED_EXTENSIONS) return false
+
+            if (normalizedFolders.isNotEmpty()) {
+                val normalizedPath = rawPath.replace('\\', '/').lowercase()
+                val inAllowedFolder = normalizedFolders.any { folder ->
+                    normalizedPath.startsWith("$folder/") || normalizedPath.contains("/$folder/")
+                }
+                if (!inAllowedFolder) return false
+            }
+            return true
+        }
+
+        fun normalizeFolders(allowedFolders: List<String>): List<String> =
+            allowedFolders.map { it.replace('\\', '/').lowercase().trimEnd('/') }
+
+        fun fileNameOf(rawPath: String): String = rawPath.substringAfterLast('/').trim()
 
         private val BLOCKED_EXTENSIONS = setOf(
             ".xml", ".sqlite", ".nfo", ".txt", ".pdf", ".log", ".html", ".htm",

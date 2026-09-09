@@ -85,6 +85,7 @@ class PixelvaultTorrentPlugin :
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "startSession" -> {
+                registry.purgeLegacyCacheDir()
                 registry.start()
                 if (!listenerRegistered) {
                     registry.session().addListener(progressBridge)

@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show StreamProvider;
 import 'package:pixelvault_torrent/pixelvault_torrent.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'db/daos/catalog_repository.dart';
+import 'db/daos/download_repository.dart';
 import 'db/daos/downloadable_file_repository.dart';
 import 'db/database.dart';
 import 'db/seed/consoles_seed_loader.dart';
 import 'deeplink/source_install_client.dart';
+import 'download/download_item.dart';
 import 'download/download_manager.dart';
 import 'download/download_progress_tracker.dart';
 import 'scraping/http_directory_scraper.dart';
@@ -36,6 +40,19 @@ CatalogRepository catalogRepository(Ref ref) {
 DownloadableFileRepository downloadableFileRepository(Ref ref) {
   return DownloadableFileRepository(ref.watch(appDatabaseProvider));
 }
+
+@Riverpod(keepAlive: true)
+DownloadRepository downloadRepository(Ref ref) {
+  return DownloadRepository(ref.watch(appDatabaseProvider));
+}
+
+/// Live queue + history for the Downloads screen. Reads straight from the
+/// `downloads` table rather than from the in-memory tracker, so the screen
+/// renders correctly on a cold start before `DownloadManager.restore()` has
+/// finished repopulating the tracker.
+final downloadHistoryProvider = StreamProvider<List<DownloadItem>>((ref) {
+  return ref.watch(downloadRepositoryProvider).watchAll();
+});
 
 @Riverpod(keepAlive: true)
 ConsolesSeedLoader consolesSeedLoader(Ref ref) {
@@ -127,9 +144,14 @@ DownloadManager downloadManager(Ref ref) {
     tracker: ref.watch(downloadProgressTrackerProvider.notifier),
     settings: ref.watch(settingsProvider.notifier),
     catalog: ref.watch(catalogRepositoryProvider),
+    downloads: ref.watch(downloadRepositoryProvider),
     torrentPlugin: ref.watch(pixelvaultTorrentProvider),
     safStorage: ref.watch(safStorageHelperProvider),
   );
   ref.onDispose(manager.dispose);
+  // Re-attach whatever a previous process left behind (queue, progress,
+  // history) as soon as the manager exists, so the Downloads screen is
+  // correct on first paint instead of starting empty.
+  unawaited(manager.restore());
   return manager;
 }

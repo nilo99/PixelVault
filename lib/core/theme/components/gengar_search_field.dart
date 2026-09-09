@@ -6,7 +6,7 @@ class GengarSearchField extends StatelessWidget {
   const GengarSearchField({
     super.key,
     this.controller,
-    this.hintText = 'Pesquisar…',
+    required this.hintText,
     this.onChanged,
     this.suffixIcon,
   });

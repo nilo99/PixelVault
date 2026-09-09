@@ -2,7 +2,6 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:pixelvault/core/db/database.dart';
 import 'package:pixelvault/core/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,11 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pixelvault/app.dart';
 
 void main() {
-  setUpAll(() {
-    // Avoid google_fonts trying to fetch font files over the network
-    // during widget tests (no real internet access in the test sandbox).
-    GoogleFonts.config.allowRuntimeFetching = false;
-  });
 
   testWidgets('App boots to the Onboarding screen on first launch', (tester) async {
     // A language has already been chosen so the router lands on onboarding

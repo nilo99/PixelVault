@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pixelvault/core/db/daos/catalog_repository.dart';
+import 'package:pixelvault/core/db/daos/download_repository.dart';
 import 'package:pixelvault/core/db/database.dart';
 import 'package:pixelvault/core/download/download_manager.dart';
 import 'package:pixelvault/core/download/download_progress_tracker.dart';
@@ -17,7 +18,6 @@ import 'package:pixelvault/core/settings/settings_repository.dart';
 import 'package:pixelvault/core/storage/saf_storage_helper.dart';
 import 'package:pixelvault_torrent/pixelvault_torrent.dart';
 import 'package:saf_stream/saf_stream.dart';
-import 'package:saf_stream/saf_stream_platform_interface.dart' show SafNewFile;
 import 'package:saf_util/saf_util_platform_interface.dart' show SafDocumentFile;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -78,6 +78,7 @@ void main() {
 
   late AppDatabase db;
   late CatalogRepository catalog;
+  late DownloadRepository downloadRepo;
   late ProviderContainer container;
   late DownloadProgressTrackerNotifier tracker;
   late SettingsNotifier settingsNotifier;
@@ -105,6 +106,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     db = AppDatabase(NativeDatabase.memory());
     catalog = CatalogRepository(db);
+    downloadRepo = DownloadRepository(db);
     container = ProviderContainer();
     tracker = container.read(downloadProgressTrackerProvider.notifier);
     settingsNotifier = container.read(settingsProvider.notifier);
@@ -123,6 +125,7 @@ void main() {
       tracker: tracker,
       settings: settingsNotifier,
       catalog: catalog,
+      downloads: downloadRepo,
       torrentPlugin: torrentPlugin,
       safStorage: safStorage,
       safStream: safStream,
@@ -372,8 +375,11 @@ void main() {
     expect(tracker.get(1)?.status, DownloadStatus.completed);
   });
 
-  test('resumes an HTTP download from bytes already present in a partial local file', () async {
-    await settingsNotifier.setAutoUnzip(false); // force the plain-copy branch, not extraction
+  // Archives are the one kind of download still staged locally, because
+  // 7-Zip-JBinding extracts from a seekable local file. Everything else
+  // streams straight to the destination — see `download_integrity_test.dart`
+  // for the resume behaviour on that path.
+  test('resumes a staged archive download from bytes already present on disk', () async {
     final localFile = File('${httpDownloadsDir.path}/1_game.zip');
     await localFile.writeAsBytes(List.filled(5, 65)); // 5 bytes already on disk
 
@@ -394,11 +400,14 @@ void main() {
     final dio = Dio()..httpClientAdapter = adapter;
 
     List<int>? capturedFileBytes;
-    when(() => safStream.pasteLocalFile(any(), any(), any(), any(), overwrite: any(named: 'overwrite')))
-        .thenAnswer((invocation) async {
-      final srcPath = invocation.positionalArguments[0] as String;
+    when(() => torrentPlugin.extractArchive(
+          archivePath: any(named: 'archivePath'),
+          destDirUri: any(named: 'destDirUri'),
+          subPath: any(named: 'subPath'),
+        )).thenAnswer((invocation) async {
+      final srcPath = invocation.namedArguments[#archivePath] as String;
       capturedFileBytes = await File(srcPath).readAsBytes();
-      return SafNewFile(Uri.parse('content://file/1'), 'game.zip');
+      return ['game.zip'];
     });
     when(() => safStorage.isValidTreeUri(any())).thenAnswer((_) async => true);
     when(() => safStorage.ensureDirectory(any(), any())).thenAnswer((_) async => 'content://tree/primary');
@@ -407,6 +416,7 @@ void main() {
       tracker: tracker,
       settings: settingsNotifier,
       catalog: catalog,
+      downloads: downloadRepo,
       torrentPlugin: torrentPlugin,
       safStorage: safStorage,
       safStream: safStream,

@@ -1,5 +1,5 @@
 name: pixelvault
-description: "A new Flutter project."
+description: "Offline-first ROM catalogue and downloader for Android."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -54,7 +54,6 @@ dependencies:
   saf_util: ^3.1.0
   saf_stream: ^3.0.0
   drift_flutter: ^0.3.0
-  google_fonts: ^8.1.0
   app_links: ^6.4.1
   crypto: ^3.0.6
   flutter_secure_storage: ^10.3.1
@@ -93,6 +92,35 @@ flutter:
   uses-material-design: true
 
   generate: true
+
+
+  fonts:
+    # Bundled rather than fetched at runtime through `google_fonts`: the app
+    # is used offline and on VPNs, and a first launch without network fell
+    # back to the system font, so the whole UI rendered in the wrong
+    # typeface. Bundling also removes a startup call to fonts.gstatic.com.
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-400.ttf
+          weight: 400
+        - asset: assets/fonts/Manrope-500.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-600.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-700.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope-800.ttf
+          weight: 800
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-400.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-500.ttf
+          weight: 500
+        - asset: assets/fonts/JetBrainsMono-600.ttf
+          weight: 600
+        - asset: assets/fonts/JetBrainsMono-700.ttf
+          weight: 700
 
   assets:
     - assets/consoles.json

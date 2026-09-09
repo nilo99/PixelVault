@@ -146,6 +146,54 @@ final class DownloadableFileRepositoryProvider
 String _$downloadableFileRepositoryHash() =>
     r'1a508eb68d9af10abd42dc8f78d30c3deb379477';
 
+@ProviderFor(downloadRepository)
+final downloadRepositoryProvider = DownloadRepositoryProvider._();
+
+final class DownloadRepositoryProvider
+    extends
+        $FunctionalProvider<
+          DownloadRepository,
+          DownloadRepository,
+          DownloadRepository
+        >
+    with $Provider<DownloadRepository> {
+  DownloadRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'downloadRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$downloadRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<DownloadRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  DownloadRepository create(Ref ref) {
+    return downloadRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DownloadRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DownloadRepository>(value),
+    );
+  }
+}
+
+String _$downloadRepositoryHash() =>
+    r'0ecc117ee2e2a62037b1087d68ded6359259687e';
+
 @ProviderFor(consolesSeedLoader)
 final consolesSeedLoaderProvider = ConsolesSeedLoaderProvider._();
 
@@ -608,4 +656,4 @@ final class DownloadManagerProvider
   }
 }
 
-String _$downloadManagerHash() => r'fde3b302ca8b1edc062a828f8693c8e6b15546fe';
+String _$downloadManagerHash() => r'8bb84519fc7fd1c5c5a12974f160e4d66eca6487';

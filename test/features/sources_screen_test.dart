@@ -3,7 +3,6 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pixelvault/core/db/database.dart';
 import 'package:pixelvault/core/models/console_x.dart';
@@ -43,12 +42,6 @@ class _EmptyDirectoryListingAdapter implements HttpClientAdapter {
 void main() {
   setUpAll(() {
     UrlsCipherHolder.initForTest();
-    // Avoid google_fonts trying to fetch font files over the network during
-    // widget tests (no real internet access in the test sandbox) — without
-    // this, a font can finish loading mid-test and reflow already-measured
-    // text, shifting tap targets out from under a coordinate computed just
-    // before the reflow.
-    GoogleFonts.config.allowRuntimeFetching = false;
   });
 
   Future<ProviderContainer> pumpScreen(

@@ -12,6 +12,7 @@ import 'package:pixelvault/core/scraping/http_directory_scraper.dart';
 import 'package:pixelvault/core/scraping/scrape_orchestrator.dart';
 import 'package:pixelvault/core/scraping/torrent_scraper.dart';
 import 'package:pixelvault/core/state/rescan_state.dart';
+import 'package:pixelvault/core/utils/error_sanitizer.dart';
 import 'package:pixelvault/core/models/url_entry.dart';
 import 'package:pixelvault/core/security/urls_cipher_holder.dart';
 
@@ -135,7 +136,7 @@ void main() {
       await orchestrator.rescanAll();
 
       expect(rescan.isRescanning, isFalse);
-      expect(container.read(rescanStateHolderProvider).progressMessage, isEmpty);
+      expect(container.read(rescanStateHolderProvider).progressNotice, isNull);
     });
 
     test('records an error and continues with the next console when a scraper throws', () async {
@@ -149,7 +150,8 @@ void main() {
       await orchestrator.rescanAll();
 
       final state = container.read(rescanStateHolderProvider);
-      expect(state.errorMessage, contains('A - Game Boy Advance'));
+      expect(state.errorNotice?.kind, RescanNoticeKind.scrapeFailed);
+      expect(state.errorNotice?.console, 'A - Game Boy Advance');
       // The loop must still have reached the second (torrent) console.
       verify(() => torrentScraper.scrapeAndInsert(
             urlEntry: any(named: 'urlEntry'),
@@ -179,9 +181,13 @@ void main() {
       await orchestrator.rescanAll();
 
       final state = container.read(rescanStateHolderProvider);
-      expect(state.errorMessage, contains('B - Super Nintendo'));
-      expect(state.errorMessage, isNot(contains('magnet:')));
-      expect(state.errorMessage, isNot(contains('Secret')));
+      expect(state.errorNotice?.kind, RescanNoticeKind.scrapeFailed);
+      expect(state.errorNotice?.console, 'B - Super Nintendo');
+      // The notice carries only a classified reason code — never any text
+      // lifted off the original exception, which can embed a magnet/URL.
+      expect(state.errorNotice?.reason, isA<ErrorReason>());
+      expect(state.errorNotice.toString(), isNot(contains('magnet:')));
+      expect(state.errorNotice.toString(), isNot(contains('Secret')));
     });
 
     test('records an error for torrent URLs when no torrentScraper is configured', () async {
@@ -189,7 +195,7 @@ void main() {
       await orchestrator.rescanAll();
 
       final state = container.read(rescanStateHolderProvider);
-      expect(state.errorMessage, contains('Torrent sources are not available'));
+      expect(state.errorNotice?.kind, RescanNoticeKind.torrentUnsupported);
       verifyNever(() => torrentScraper.scrapeAndInsert(
             urlEntry: any(named: 'urlEntry'),
             consoleId: any(named: 'consoleId'),
@@ -212,7 +218,7 @@ void main() {
             consoleId: any(named: 'consoleId'),
             contentType: any(named: 'contentType'),
           ));
-      expect(container.read(rescanStateHolderProvider).errorMessage, contains('sincronização em curso'));
+      expect(container.read(rescanStateHolderProvider).errorNotice?.kind, RescanNoticeKind.alreadyRunning);
     });
 
     test('deletes and rescrapes one console at a time instead of wiping the whole catalog up front', () async {
@@ -301,7 +307,7 @@ void main() {
             consoleId: any(named: 'consoleId'),
             contentType: any(named: 'contentType'),
           ));
-      expect(container.read(rescanStateHolderProvider).errorMessage, contains('sincronização em curso'));
+      expect(container.read(rescanStateHolderProvider).errorNotice?.kind, RescanNoticeKind.alreadyRunning);
     });
 
     test(

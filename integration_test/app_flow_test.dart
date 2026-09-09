@@ -6,7 +6,6 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pixelvault/core/db/database.dart';
@@ -57,12 +56,9 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-    // Unlike the plain widget_test.dart (which only ever renders the
-    // Onboarding screen), this test navigates through screens that need font
-    // weights that may not already be cached — disabling runtime fetching
-    // throws instead of falling back. Real network access is available in
-    // this environment, so let it actually fetch.
-    GoogleFonts.config.allowRuntimeFetching = true;
+    // Fonts are bundled assets now (see `pubspec.yaml`), so no font weight
+    // has to be fetched at runtime and this test needs no network for
+    // typography.
     UrlsCipherHolder.initForTest();
   });
 
