@@ -71,8 +71,12 @@ conveniently, `--dart-define-from-file`) — it is never committed to the repo.
   `flutter run --dart-define-from-file=secrets.json`.
 - **Release builds** (`flutter build apk --release`/`appbundle`) **must**
   pass the real secret via `--dart-define-from-file=secrets.json` (or CI
-  secret injection) — omitting it throws a clear `StateError` at startup
-  instead of silently shipping a broken or insecure build.
+  secret injection). Omitting it does **not** fail the build, and does not
+  fail at startup either: `SourceInstallClient` is created lazily, the first
+  time a `pixelvault://install` link is opened, so a secret-less release APK
+  installs and runs normally and only the "Instalar" flow is dead — it
+  reports "could not install the source" for every link. Check the secret is
+  present before publishing a build; nothing else will tell you.
 
 The secret is a deterrent, not real security: it is extractable from the APK.
 It raises the bar from "copy one header string" to "reverse-engineer the
