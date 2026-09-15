@@ -15,10 +15,19 @@
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+        <!-- singleTask, not singleTop. With taskAffinity="" a launch that
+             carries FLAG_ACTIVITY_NEW_TASK (tapping the download notification,
+             an install link opened from the browser) started a SECOND
+             MainActivity in a new task. singleTop only deduplicates within
+             one task, so the process ended up with two Flutter engines: two
+             download managers, two database connections and two libtorrent
+             sessions fighting each other while one of them looked freshly
+             restarted. singleTask routes every launch to the one instance
+             through onNewIntent, which app_links already handles. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

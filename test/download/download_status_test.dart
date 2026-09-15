@@ -11,11 +11,12 @@ void main() {
         DownloadStatus.completed,
         DownloadStatus.failed,
         DownloadStatus.stopped,
+        DownloadStatus.cancelled,
       ]));
     });
 
-    test('has exactly 6 values', () {
-      expect(DownloadStatus.values.length, 6);
+    test('has exactly 7 values', () {
+      expect(DownloadStatus.values.length, 7);
     });
 
     test('can be looked up by name', () {

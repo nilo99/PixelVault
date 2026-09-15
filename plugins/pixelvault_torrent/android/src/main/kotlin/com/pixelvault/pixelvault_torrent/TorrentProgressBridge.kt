@@ -1,11 +1,14 @@
 package com.pixelvault.pixelvault_torrent
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.libtorrent4j.AlertListener
 import org.libtorrent4j.TorrentHandle
@@ -28,9 +31,16 @@ fun interface TorrentProgressEmitter {
  * StateFlow sink is replaced with [TorrentProgressEmitter] (backed by a
  * Flutter EventChannel on the Dart side).
  *
- * Tracking is keyed by `downloadId` (the Dart side's unique DB row id), not
+ * Tracking is keyed by `downloadId` (the Dart side's download attempt id), not
  * `fileName` — two downloads from different sources can share the same file
  * name, which used to let one silently overwrite the other's tracked entry.
+ *
+ * Nothing in here may throw out of a thread it does not own. The polling loop
+ * runs on Dispatchers.IO and [alert] runs on libtorrent's own alert thread;
+ * an exception escaping either is an uncaught exception, and Android kills the
+ * whole process for it — every other download in flight included. Handles in
+ * particular turn invalid underneath us whenever a torrent is removed, and
+ * reading from an invalid handle throws.
  */
 class TorrentProgressBridge(private val emitter: TorrentProgressEmitter) : AlertListener {
 
@@ -43,11 +53,19 @@ class TorrentProgressBridge(private val emitter: TorrentProgressEmitter) : Alert
     )
 
     private val tracked = mutableMapOf<String, TrackedFile>()
-    private val scope = CoroutineScope(Dispatchers.IO + Job())
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e ->
+            Log.e(TAG, "Progress polling failed", e)
+        }
+    )
     private var pollingJob: Job? = null
 
     fun trackDownload(downloadId: String, fileName: String, fileIndex: Int, handle: TorrentHandle) {
-        val expectedSize = handle.torrentFile()?.files()?.fileSize(fileIndex) ?: 0L
+        val expectedSize = try {
+            handle.torrentFile()?.files()?.fileSize(fileIndex) ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
         synchronized(this) {
             tracked[downloadId] = TrackedFile(fileName, fileIndex, handle, expectedSize)
             startPolling()
@@ -62,7 +80,7 @@ class TorrentProgressBridge(private val emitter: TorrentProgressEmitter) : Alert
         }
     }
 
-    /** Cancels the internal polling coroutine scope — call once when the owning plugin detaches. */
+    /** Cancels the internal polling coroutine scope — call once when the owning runtime shuts down. */
     fun dispose() {
         synchronized(this) {
             tracked.clear()
@@ -74,8 +92,13 @@ class TorrentProgressBridge(private val emitter: TorrentProgressEmitter) : Alert
     private fun startPolling() {
         if (pollingJob != null) return
         pollingJob = scope.launch {
-            while (true) {
-                updateProgress()
+            while (isActive) {
+                try {
+                    updateProgress()
+                } catch (e: Exception) {
+                    // One bad tick must not end polling for every download.
+                    Log.w(TAG, "Progress update failed: ${e.message}")
+                }
                 delay(1000L)
             }
         }
@@ -91,50 +114,54 @@ class TorrentProgressBridge(private val emitter: TorrentProgressEmitter) : Alert
         synchronized(this) { snapshot = tracked.toMap() }
 
         snapshot.forEach { (downloadId, info) ->
-            val handle = info.handle
-            if (!handle.isValid) return@forEach
-
-            val status = try {
-                handle.status()
+            try {
+                emitProgressFor(downloadId, info)
             } catch (e: Exception) {
-                return@forEach
+                Log.w(TAG, "Skipping progress for $downloadId: ${e.message}")
             }
-            val total = info.expectedSize
-            if (total <= 0) return@forEach
-
-            val fileProgressBytes = try {
-                handle.fileProgress()
-            } catch (e: Exception) {
-                null
-            }
-            val downloaded = if (fileProgressBytes != null && info.fileIndex < fileProgressBytes.size) {
-                fileProgressBytes[info.fileIndex]
-            } else {
-                (status.progress() * total).toLong()
-            }
-            val progress = (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-            val speedMBs = status.downloadPayloadRate() / (1024f * 1024f)
-            val isFinished = downloaded >= total
-
-            val newStatus = if (isFinished) TorrentDownloadStatus.COMPLETED else TorrentDownloadStatus.DOWNLOADING
-            if (newStatus != info.lastStatus) {
-                synchronized(this) { tracked[downloadId]?.lastStatus = newStatus }
-            }
-
-            emitter.emit(downloadId, info.fileName, progress, speedMBs, downloaded, newStatus)
         }
+    }
+
+    private fun emitProgressFor(downloadId: String, info: TrackedFile) {
+        val handle = info.handle
+        if (!handle.isValid) return
+
+        val status = handle.status()
+        val total = info.expectedSize
+        if (total <= 0) return
+
+        val fileProgressBytes = try {
+            handle.fileProgress()
+        } catch (e: Exception) {
+            null
+        }
+        val downloaded = if (fileProgressBytes != null && info.fileIndex < fileProgressBytes.size) {
+            fileProgressBytes[info.fileIndex]
+        } else {
+            (status.progress() * total).toLong()
+        }
+        val progress = (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+        val speedMBs = status.downloadPayloadRate() / (1024f * 1024f)
+        val isFinished = downloaded >= total
+
+        val newStatus = if (isFinished) TorrentDownloadStatus.COMPLETED else TorrentDownloadStatus.DOWNLOADING
+        if (newStatus != info.lastStatus) {
+            synchronized(this) { tracked[downloadId]?.lastStatus = newStatus }
+        }
+
+        emitter.emit(downloadId, info.fileName, progress, speedMBs, downloaded, newStatus)
     }
 
     fun countTrackedForHandle(handle: TorrentHandle): Int {
         synchronized(this) {
-            return tracked.values.count { it.handle.infoHash() == handle.infoHash() }
+            return tracked.values.count { sameTorrent(it.handle, handle) }
         }
     }
 
     fun getTrackedFileIndicesForHandle(handle: TorrentHandle): Set<Int> {
         synchronized(this) {
             return tracked.values
-                .filter { it.handle.infoHash() == handle.infoHash() }
+                .filter { sameTorrent(it.handle, handle) }
                 .map { it.fileIndex }
                 .toSet()
         }
@@ -147,11 +174,15 @@ class TorrentProgressBridge(private val emitter: TorrentProgressEmitter) : Alert
     )
 
     override fun alert(alert: Alert<*>) {
-        when (alert.type()) {
-            AlertType.TORRENT_FINISHED -> onTorrentFinished(alert as TorrentFinishedAlert)
-            AlertType.FILE_ERROR -> onFileError(alert as FileErrorAlert)
-            AlertType.TORRENT_ERROR -> onTorrentError(alert as TorrentErrorAlert)
-            else -> Unit
+        try {
+            when (alert.type()) {
+                AlertType.TORRENT_FINISHED -> onTorrentFinished(alert as TorrentFinishedAlert)
+                AlertType.FILE_ERROR -> onFileError(alert as FileErrorAlert)
+                AlertType.TORRENT_ERROR -> onTorrentError(alert as TorrentErrorAlert)
+                else -> Unit
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Alert handling failed", e)
         }
     }
 
@@ -190,8 +221,17 @@ class TorrentProgressBridge(private val emitter: TorrentProgressEmitter) : Alert
         val snapshot: Map<String, TrackedFile>
         synchronized(this) { snapshot = tracked.toMap() }
         snapshot.entries
-            .filter { (_, info) -> info.handle.infoHash() == handle.infoHash() }
+            .filter { (_, info) -> sameTorrent(info.handle, handle) }
             .forEach { (id, info) -> action(id, info) }
+    }
+
+    /** Info-hash comparison that treats an invalid handle as "not the same" instead of throwing. */
+    private fun sameTorrent(a: TorrentHandle, b: TorrentHandle): Boolean {
+        return try {
+            a.isValid && b.isValid && a.infoHash() == b.infoHash()
+        } catch (e: Exception) {
+            false
+        }
     }
 
     companion object {

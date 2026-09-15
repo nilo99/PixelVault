@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:html/parser.dart' as html_parser;
 import 'package:pixelvault/core/db/daos/downloadable_file_repository.dart';
 import 'package:pixelvault/core/db/database.dart';
+import 'package:pixelvault/core/scraping/http_directory_scraper.dart';
 
 void main() {
   late AppDatabase db;
@@ -15,10 +17,25 @@ void main() {
     await db.into(db.manufacturers).insert(
           ManufacturersCompanion.insert(id: 'nintendo', name: 'Nintendo'),
         );
+    await db.into(db.manufacturers).insert(
+          ManufacturersCompanion.insert(id: 'sony', name: 'Sony'),
+        );
     await db.into(db.consoles).insert(ConsolesCompanion.insert(
           id: 'n3ds',
           name: 'Nintendo 3DS',
           manufacturerId: 'nintendo',
+          urlsJson: '[]',
+        ));
+    await db.into(db.consoles).insert(ConsolesCompanion.insert(
+          id: 'sony_playstation_2',
+          name: 'PlayStation 2',
+          manufacturerId: 'sony',
+          urlsJson: '[]',
+        ));
+    await db.into(db.consoles).insert(ConsolesCompanion.insert(
+          id: 'sony_playstation_portable',
+          name: 'PlayStation Portable',
+          manufacturerId: 'sony',
           urlsJson: '[]',
         ));
   });
@@ -42,6 +59,22 @@ void main() {
     );
   }
 
+  /// Scrapes a directory listing of [fileNames] into [consoleId] — the path a
+  /// real source takes — so what gets grouped is what the scraper stores.
+  Future<void> scrapeListing(String consoleId, List<String> fileNames) async {
+    final rows = [
+      for (final name in fileNames)
+        '<tr><td class="link"><a href="${Uri.encodeComponent(name)}" title="$name">$name</a></td>'
+            '<td class="size">1.0GB</td></tr>',
+    ].join();
+    final (companions, tags) = HttpDirectoryScraper.parseListing(
+      doc: html_parser.parse('<html><body><table>$rows</table></body></html>'),
+      baseUrl: 'https://example.com/$consoleId/',
+      consoleId: consoleId,
+    );
+    await repo.insertFilesWithTags(companions, tags);
+  }
+
   test('collapses every variant of a game into one result', () async {
     // Exactly the shape that made a search for "pokemon" unusable: one game,
     // many regions and formats, each previously its own top-level row.
@@ -60,6 +93,52 @@ void main() {
     expect(y.variants, hasLength(3));
     expect(y.totalSize, 300);
     expect(y.isSingle, isFalse);
+  });
+
+  test('a search on a console puts every region and format of a game in one group, and keeps sequels apart',
+      () async {
+    // The reported case: searching "god of war" in PS2 must give God of War
+    // and God of War II, each holding all of its .iso, .7z and .chd files.
+    await scrapeListing('sony_playstation_2', [
+      'God of War (USA).iso',
+      'God of War (Europe, Australia) (En,Fr,De,Es,It).7z',
+      'God of War (Japan).chd',
+      'God of War (USA) (Rev 1).iso.7z',
+      'God of War II (USA).iso',
+      'God of War II (Europe) (Disc 1).chd',
+      'Ico (USA).iso',
+    ]);
+
+    final groups = await repo.queryGroupedFiles(query: 'god of war', consoleIds: ['sony_playstation_2']);
+
+    expect(groups.map((g) => g.title), ['God of War', 'God of War II']);
+    expect(
+      groups.first.variants.map((v) => v.fileName),
+      unorderedEquals([
+        'God of War (USA).iso',
+        'God of War (Europe, Australia) (En,Fr,De,Es,It).7z',
+        'God of War (Japan).chd',
+        'God of War (USA) (Rev 1).iso.7z',
+      ]),
+    );
+    expect(groups.last.variants, hasLength(2));
+    // With auto-extraction on, a PS2 .7z is an ISO once it lands.
+    expect(groups.first.formatsFor(autoUnzip: true), ['CHD', 'ISO']);
+  });
+
+  test('the same title on two consoles is two separate games', () async {
+    await scrapeListing('sony_playstation_2', ['Tekken (USA).iso']);
+    await scrapeListing('sony_playstation_portable', ['Tekken (USA).iso']);
+
+    final groups = await repo.queryGroupedFiles(query: 'tekken');
+
+    expect(groups, hasLength(2));
+    expect(groups.map((g) => g.consoleId).toSet(), {'sony_playstation_2', 'sony_playstation_portable'});
+    for (final group in groups) {
+      expect(group.variants, hasLength(1));
+      expect(group.variants.single.consoleId, group.consoleId);
+    }
+    expect(groups.first.id, isNot(groups.last.id));
   });
 
   test('groups case- and whitespace-insensitively', () async {
@@ -100,9 +179,10 @@ void main() {
     ]);
 
     final groups = await repo.queryGroupedFiles(query: 'chrono');
+    final formats = groups.single.formatsFor(autoUnzip: false);
     // `.iso.7z` reports ISO, not 7Z — the archive is transport, not format.
-    expect(groups.single.formats, containsAll(<String>['ISO', 'CHD']));
-    expect(groups.single.formats, isNot(contains('7Z')));
+    expect(formats, containsAll(<String>['ISO', 'CHD']));
+    expect(formats, isNot(contains('7Z')));
   });
 
   test('paginates over groups, never splitting a game across pages', () async {

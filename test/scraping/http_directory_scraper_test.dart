@@ -22,9 +22,11 @@ void main() {
     );
 
     expect(companions, hasLength(1));
-    // extractNameAndTags only strips `(...)` groups, not the trailing
-    // extension — this matches Milou's DatabaseScrapingService verbatim.
-    expect(companions.single.name.value, 'Burnout Paradise .zip');
+    // The title drops every tag group *and* the extension. Keeping the
+    // extension (as the original service did) made each format of a game
+    // its own entry in search.
+    expect(companions.single.name.value, 'Burnout Paradise');
+    expect(companions.single.groupKey.value, 'burnout paradise');
     expect(companions.single.consoleId.value, 'nintendo_gamecube');
     expect(companions.single.fileExtension.value, '.zip');
     expect(companions.single.fileSize.value, 1400000000);
@@ -48,7 +50,7 @@ void main() {
     );
 
     expect(companions, hasLength(1));
-    expect(companions.single.name.value, 'Sonic Adventure 2 .zip');
+    expect(companions.single.name.value, 'Sonic Adventure 2');
     expect(companions.single.downloadUrl.value,
         'https://example.com/roms/gc/Sonic%20Adventure%202%20(USA).zip');
     expect(companions.single.fileSize.value, 750000000);

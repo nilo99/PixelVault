@@ -9,6 +9,7 @@ import '../../core/theme/gengar_components.dart';
 import '../../core/theme/gengar_typography.dart';
 import '../../core/utils/format_bytes.dart';
 import '../../l10n/app_localizations.dart';
+import '../../core/theme/gengar_metrics.dart';
 
 /// Landing tab of the Library branch: a scrollable list of consoles that
 /// actually have indexed files, tapped to jump into a filtered
@@ -76,7 +77,7 @@ class _PlatformSelectScreenState extends ConsumerState<PlatformSelectScreen> {
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                      padding: EdgeInsets.fromLTRB(GengarMetrics.of(context).gutter, 14, GengarMetrics.of(context).gutter, 0),
                       child: GengarSearchField(
                         controller: _searchController,
                         hintText: l10n.platformSelectSearchHint,
@@ -86,7 +87,7 @@ class _PlatformSelectScreenState extends ConsumerState<PlatformSelectScreen> {
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                      padding: EdgeInsets.fromLTRB(GengarMetrics.of(context).gutter, 14, GengarMetrics.of(context).gutter, 0),
                       child: _GlobalLibraryCard(onTap: () => context.go('/platforms/library')),
                     ),
                   ),
@@ -118,7 +119,7 @@ class _PlatformSelectScreenState extends ConsumerState<PlatformSelectScreen> {
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
+                      padding: EdgeInsets.fromLTRB(GengarMetrics.of(context).gutter, 0, GengarMetrics.of(context).gutter, GengarMetrics.of(context).navBarInset),
                       sliver: SliverList.separated(
                         itemCount: filtered.length,
                         separatorBuilder: (context, index) => const SizedBox(height: 10),
@@ -180,7 +181,7 @@ class _GlobalLibraryCard extends StatelessWidget {
                 ),
                 child: const Icon(Icons.menu_rounded, size: 22, color: Colors.white),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: GengarMetrics.of(context).gap(14)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,6 +228,10 @@ class _ConsoleRowState extends State<_ConsoleRow> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final metrics = GengarMetrics.of(context);
+    // The artwork is the most expendable width in the row, so it is what
+    // shrinks on a small screen and the console name keeps room to be read.
+    final artWidth = metrics.isTiny ? 72.0 : (metrics.isCompact ? 92.0 : 112.0);
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapCancel: () => setState(() => _pressed = false),
@@ -237,7 +242,7 @@ class _ConsoleRowState extends State<_ConsoleRow> {
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOutCubic,
         child: Container(
-          padding: const EdgeInsets.all(11),
+          padding: EdgeInsets.all(metrics.isTiny ? 8 : 11),
           decoration: BoxDecoration(
             color: GengarColors.cardFill.withValues(alpha: GengarColors.cardFillOpacity),
             borderRadius: BorderRadius.circular(18),
@@ -245,8 +250,13 @@ class _ConsoleRowState extends State<_ConsoleRow> {
           ),
           child: Row(
             children: [
-              GengarConsoleArtCard(consoleName: widget.console.name, consoleId: widget.console.id),
-              const SizedBox(width: 14),
+              GengarConsoleArtCard(
+                consoleName: widget.console.name,
+                consoleId: widget.console.id,
+                width: artWidth,
+                height: artWidth * 80 / 112,
+              ),
+              SizedBox(width: GengarMetrics.of(context).gap(14)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,9 +280,13 @@ class _ConsoleRowState extends State<_ConsoleRow> {
                           ),
                         ),
                         const SizedBox(width: 7),
-                        Text(
-                          l10n.platformSelectConsoleSummary(widget.fileCount, formatBytes(widget.totalSize)),
-                          style: GengarTypography.monoAccent(fontSize: 11.5),
+                        Flexible(
+                          child: Text(
+                            l10n.platformSelectConsoleSummary(widget.fileCount, formatBytes(widget.totalSize)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GengarTypography.monoAccent(fontSize: 11.5),
+                          ),
                         ),
                       ],
                     ),

@@ -1,16 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saf_util/saf_util.dart';
 
 import '../../core/db/database.dart';
+import '../../core/diagnostics/diagnostics_log.dart';
 import '../../core/providers.dart';
 import '../../core/settings/settings_repository.dart';
+import '../../core/storage/esde_configurator.dart';
+import '../../core/storage/saf_storage_helper.dart';
 import '../../core/theme/gengar_colors.dart';
 import '../../core/theme/gengar_components.dart';
 import '../../core/theme/gengar_typography.dart';
 import '../../l10n/app_localizations.dart';
+import '../esde_setup/esde_setup_screen.dart' show esDeSetupSummary;
 import '../language_select/language_select_screen.dart' show kSupportedLocales;
+
+/// "ROMs/psx" instead of the opaque
+/// `content://com.android.externalstorage.documents/tree/…` URI — on a
+/// narrow screen only the start of that fits, and the start is the same for
+/// every folder, so nobody could tell which folder a console was set to.
+String _readableFolder(String uri) {
+  final location = SafPathLabel.parse(uri);
+  if (location.isEmpty) return uri;
+  if (location.path.isEmpty) return location.volume;
+  return location.isPrimary ? location.path : '${location.volume}:${location.path}';
+}
 
 /// Global download dir, separate-by-console toggle, speed limit, auto-unzip,
 /// concurrency, per-console folders, language — wired to `SettingsNotifier`
@@ -28,6 +44,39 @@ class SettingsScreen extends ConsumerWidget {
     final picked = await SafUtil().pickDirectory(writePermission: true, persistablePermission: true);
     if (picked == null) return;
     await ref.read(settingsProvider.notifier).setConsoleDownloadDirectory(consoleId, picked.uri);
+  }
+
+  /// The same setup the first-run ES-DE question offers, for anyone who
+  /// skipped it or has since moved their ROMs folder.
+  Future<void> _runEsDeSetup(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final String message;
+    try {
+      final result = await ref.read(esDeSetupServiceProvider).run();
+      if (result == null) return;
+      message = esDeSetupSummary(l10n, result);
+    } on NotAnEsDeRomsFolderException {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.esdeSetupNotEsde)));
+      return;
+    } catch (error, stack) {
+      Diagnostics.record('esde', 'setup failed: $error', stack);
+      messenger.showSnackBar(SnackBar(content: Text(l10n.esdeSetupFailed)));
+      return;
+    }
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _copyDiagnostics(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final log = await Diagnostics.read();
+    if (log.isEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.settingsDiagnosticsEmpty)));
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: log));
+    messenger.showSnackBar(SnackBar(content: Text(l10n.settingsDiagnosticsCopied)));
   }
 
   Future<void> _pickLanguage(BuildContext context, WidgetRef ref, String currentCode) async {
@@ -83,7 +132,9 @@ class SettingsScreen extends ConsumerWidget {
                             key: const Key('settings_download_directory_row'),
                             icon: Icons.folder_rounded,
                             title: l10n.settingsDownloadDirTitle,
-                            path: settings.downloadDirectory.isEmpty ? l10n.settingsNotSet : settings.downloadDirectory,
+                            path: settings.downloadDirectory.isEmpty
+                                ? l10n.settingsNotSet
+                                : _readableFolder(settings.downloadDirectory),
                             actionLabel: l10n.commonChange,
                             onTap: () => _pickDownloadDirectory(ref),
                           ),
@@ -94,6 +145,15 @@ class SettingsScreen extends ConsumerWidget {
                             subtitle: l10n.settingsSeparateByConsoleSubtitle,
                             value: settings.separateByConsole,
                             onChanged: notifier.setSeparateByConsole,
+                          ),
+                          const _RowDivider(),
+                          _LinkRow(
+                            key: const Key('settings_esde_row'),
+                            icon: Icons.sports_esports_rounded,
+                            title: l10n.settingsEsdeTitle,
+                            path: l10n.settingsEsdeSubtitle,
+                            actionLabel: l10n.commonSet,
+                            onTap: () => _runEsDeSetup(context, ref),
                           ),
                         ],
                       ),
@@ -147,8 +207,11 @@ class SettingsScreen extends ConsumerWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(l10n.settingsSpeedLimitTitle,
-                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: GengarColors.onBackground)),
+                                    Expanded(
+                                      child: Text(l10n.settingsSpeedLimitTitle,
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: GengarColors.onBackground)),
+                                    ),
+                                    const SizedBox(width: 12),
                                     Text(
                                       settings.limitSpeedMbs <= 0
                                           ? l10n.settingsUnlimited
@@ -184,8 +247,11 @@ class SettingsScreen extends ConsumerWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(l10n.settingsConcurrentDownloadsTitle,
-                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: GengarColors.onBackground)),
+                                    Expanded(
+                                      child: Text(l10n.settingsConcurrentDownloadsTitle,
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: GengarColors.onBackground)),
+                                    ),
+                                    const SizedBox(width: 12),
                                     Text(
                                       '${settings.concurrentDownloads}',
                                       style: GengarTypography.monoAccent(fontSize: 12.5, fontWeight: FontWeight.w600, color: GengarColors.primary),
@@ -222,6 +288,21 @@ class SettingsScreen extends ConsumerWidget {
                             subtitle: l10n.settingsAutoUnzipSubtitle,
                             value: settings.autoUnzip,
                             onChanged: notifier.setAutoUnzip,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      GengarSectionLabel(l10n.settingsDiagnosticsSection),
+                      const SizedBox(height: 10),
+                      _SectionCard(
+                        children: [
+                          _LinkRow(
+                            key: const Key('settings_copy_diagnostics_row'),
+                            icon: Icons.bug_report_rounded,
+                            title: l10n.settingsDiagnosticsCopyTitle,
+                            path: l10n.settingsDiagnosticsCopySubtitle,
+                            actionIcon: Icons.copy_rounded,
+                            onTap: () => _copyDiagnostics(context),
                           ),
                         ],
                       ),
@@ -283,14 +364,19 @@ class _LinkRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.path,
-    required this.actionLabel,
+    this.actionLabel,
+    this.actionIcon,
     required this.onTap,
-  });
+  }) : assert(actionLabel != null || actionIcon != null);
 
   final IconData icon;
   final String title;
   final String path;
-  final String actionLabel;
+
+  /// The trailing call to action: a word ("Alterar"), or an icon where the
+  /// action has no short word of its own.
+  final String? actionLabel;
+  final IconData? actionIcon;
   final VoidCallback onTap;
 
   @override
@@ -330,7 +416,10 @@ class _LinkRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(actionLabel, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: GengarColors.accentLight)),
+              if (actionLabel != null)
+                Text(actionLabel!, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: GengarColors.accentLight))
+              else
+                Icon(actionIcon, size: 18, color: GengarColors.accentLight),
             ],
           ),
         ),
@@ -430,7 +519,7 @@ class _ConsoleFolderRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      hasCustom ? path! : l10n.settingsUsesMainFolder,
+                      hasCustom ? _readableFolder(path!) : l10n.settingsUsesMainFolder,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GengarTypography.monoAccent(fontSize: 10, color: hasCustom ? const Color(0xFFA8B0C4) : GengarColors.textFaint),

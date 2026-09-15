@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ^3.12.2
@@ -54,6 +54,9 @@ dependencies:
   saf_util: ^3.1.0
   saf_stream: ^3.0.0
   drift_flutter: ^0.3.0
+  # Already resolved through drift; declared directly because the database
+  # connection setup names its `CommonDatabase` type.
+  sqlite3: ^3.3.4
   app_links: ^6.4.1
   crypto: ^3.0.6
   flutter_secure_storage: ^10.3.1

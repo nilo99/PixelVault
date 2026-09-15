@@ -33,6 +33,11 @@ class DownloadableFiles extends Table {
   TextColumn get fileExtension => text().withDefault(const Constant(''))();
   IntColumn get torrentFileIndex => integer().nullable()();
   TextColumn get torrentMagnet => text().nullable()();
+
+  /// The game this file is one version of: `RomTitle.key` of its title.
+  /// Every region, revision and format of a game shares it, and it is what
+  /// the Library groups search results on.
+  TextColumn get groupKey => text().withDefault(const Constant(''))();
 }
 
 class FileTags extends Table {

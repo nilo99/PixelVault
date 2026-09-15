@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../gengar_colors.dart';
+import '../gengar_metrics.dart';
 import '../gengar_tokens.dart';
 
 /// Primary call-to-action button: the mockup's CTA gradient pill
@@ -21,6 +22,7 @@ class GengarPrimaryButton extends StatelessWidget {
     final tokens = Theme.of(context).extension<GengarTokens>() ?? GengarTokens.standard();
     final radius = BorderRadius.circular(tokens.radiusMd);
     final enabled = onPressed != null;
+    final metrics = GengarMetrics.of(context);
 
     return Container(
       constraints: const BoxConstraints(minHeight: 48, minWidth: 44),
@@ -37,7 +39,7 @@ class GengarPrimaryButton extends StatelessWidget {
           borderRadius: radius,
           onTap: onPressed,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
+            padding: EdgeInsets.symmetric(horizontal: metrics.isTiny ? 14 : 22, vertical: 13),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -46,12 +48,22 @@ class GengarPrimaryButton extends StatelessWidget {
                   Icon(icon, size: 20, color: GengarColors.onPrimary),
                   const SizedBox(width: 9),
                 ],
-                Text(
-                  label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(color: GengarColors.onPrimary, fontWeight: FontWeight.w700),
+                // Flexible so that when a dialog's action bar is narrower
+                // than the label, it wraps onto a second line instead of
+                // pushing the button past its own edge. A flexible child
+                // needs a width-bounded parent; every call site provides one
+                // (dialog actions, or a Column).
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(color: GengarColors.onPrimary, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             ),

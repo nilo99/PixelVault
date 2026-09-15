@@ -227,5 +227,76 @@
   "errorLinkExpired": "ce lien n'est plus valide",
   "errorServerResponse": "réponse invalide du serveur",
   "errorSourceUnreachable": "impossible de joindre le serveur",
-  "errorUnexpected": "une erreur inattendue s'est produite"
+  "errorUnexpected": "une erreur inattendue s'est produite",
+  "commonDelete": "Supprimer",
+  "downloadsStatusCancelled": "Annulé",
+  "downloadsDeleteTooltip": "Supprimer de l'historique",
+  "downloadsSelectTooltip": "Sélectionner",
+  "downloadsExitSelectionTooltip": "Terminer la sélection",
+  "downloadsSelectedCount": "{count, plural, =1{1 sélectionné} other{{count} sélectionnés}}",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsDeleteSelected": "Supprimer la sélection",
+  "downloadsDeleteSelectedConfirmTitle": "{count, plural, =1{Supprimer 1 entrée de l'historique ?} other{Supprimer {count} entrées de l'historique ?}}",
+  "@downloadsDeleteSelectedConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsClearHistoryConfirmTitle": "Effacer tout l'historique ?",
+  "downloadsHistoryDeleteConfirmBody": "Les jeux déjà téléchargés restent dans leur dossier. Seules les entrées de l'historique sont supprimées.",
+  "libraryDownloadResumedSnackbar": "Reprise de {name}",
+  "@libraryDownloadResumedSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryDownloadAlreadyActiveSnackbar": "{name} est déjà en cours de téléchargement",
+  "@libraryDownloadAlreadyActiveSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryInstalledBadge": "Déjà dans ton dossier",
+  "libraryVariantInstalledBadge": "Dans le dossier",
+  "esdeSetupTitle": "Tu utilises ES-DE ?",
+  "esdeSetupBody": "Si cet appareil a déjà le dossier ROMs d'ES-DE, chaque console est dirigée vers le bon sous-dossier (psx, ps2, n3ds…) et les jeux arrivent là où ES-DE les cherche.",
+  "esdeSetupPickButton": "Choisir le dossier ROMs",
+  "esdeSetupSkipButton": "Pas maintenant",
+  "esdeSetupDone": "{count, plural, =1{1 console configurée.} other{{count} consoles configurées.}}",
+  "@esdeSetupDone": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupCreatedFolders": "{count, plural, =1{1 dossier manquant créé.} other{{count} dossiers manquants créés.}}",
+  "@esdeSetupCreatedFolders": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupNotEsde": "Ce dossier ne ressemble pas au dossier ROMs d'ES-DE. Choisis celui qui contient psx, ps2, snes…",
+  "esdeSetupFailed": "Impossible de configurer les dossiers.",
+  "settingsEsdeTitle": "Dossiers ES-DE",
+  "settingsEsdeSubtitle": "Configurer depuis le dossier ROMs",
+  "settingsDiagnosticsSection": "Diagnostic",
+  "settingsDiagnosticsCopyTitle": "Copier le journal d'erreurs",
+  "settingsDiagnosticsCopySubtitle": "À envoyer si quelque chose se passe mal",
+  "settingsDiagnosticsCopied": "Journal copié.",
+  "settingsDiagnosticsEmpty": "Aucune erreur enregistrée pour l'instant."
 }

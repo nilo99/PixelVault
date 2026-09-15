@@ -41,7 +41,7 @@ final class RescanStateHolderProvider
   }
 }
 
-String _$rescanStateHolderHash() => r'25328b1c2eb6dec674973f97655caeb8c67ec7ae';
+String _$rescanStateHolderHash() => r'13bce6d8c1b5f522ffd4e59d699512eb765c59d5';
 
 abstract class _$RescanStateHolder extends $Notifier<RescanState> {
   RescanState build();

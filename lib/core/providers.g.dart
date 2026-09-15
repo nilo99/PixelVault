@@ -568,6 +568,113 @@ final class SafStorageHelperProvider
 
 String _$safStorageHelperHash() => r'196c21d8ff7b8f6bb8b5da323088f3c5d3d704ac';
 
+/// What each destination folder already holds, behind the Library's
+/// "already in the folder" badge.
+
+@ProviderFor(installedGamesIndex)
+final installedGamesIndexProvider = InstalledGamesIndexProvider._();
+
+/// What each destination folder already holds, behind the Library's
+/// "already in the folder" badge.
+
+final class InstalledGamesIndexProvider
+    extends
+        $FunctionalProvider<
+          InstalledGamesIndex,
+          InstalledGamesIndex,
+          InstalledGamesIndex
+        >
+    with $Provider<InstalledGamesIndex> {
+  /// What each destination folder already holds, behind the Library's
+  /// "already in the folder" badge.
+  InstalledGamesIndexProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'installedGamesIndexProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$installedGamesIndexHash();
+
+  @$internal
+  @override
+  $ProviderElement<InstalledGamesIndex> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  InstalledGamesIndex create(Ref ref) {
+    return installedGamesIndex(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(InstalledGamesIndex value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<InstalledGamesIndex>(value),
+    );
+  }
+}
+
+String _$installedGamesIndexHash() =>
+    r'71428ac2d2c013620781c16acf0503c299850f54';
+
+/// ES-DE folder setup, shared by the first-run question and Settings.
+
+@ProviderFor(esDeSetupService)
+final esDeSetupServiceProvider = EsDeSetupServiceProvider._();
+
+/// ES-DE folder setup, shared by the first-run question and Settings.
+
+final class EsDeSetupServiceProvider
+    extends
+        $FunctionalProvider<
+          EsDeSetupService,
+          EsDeSetupService,
+          EsDeSetupService
+        >
+    with $Provider<EsDeSetupService> {
+  /// ES-DE folder setup, shared by the first-run question and Settings.
+  EsDeSetupServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'esDeSetupServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$esDeSetupServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<EsDeSetupService> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  EsDeSetupService create(Ref ref) {
+    return esDeSetupService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(EsDeSetupService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<EsDeSetupService>(value),
+    );
+  }
+}
+
+String _$esDeSetupServiceHash() => r'edc449accef7efd96d48c8f2094e3734f3bf38e6';
+
 @ProviderFor(sourceInstallClient)
 final sourceInstallClientProvider = SourceInstallClientProvider._();
 

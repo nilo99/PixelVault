@@ -11,6 +11,7 @@ import 'package:pixelvault/core/db/daos/catalog_repository.dart';
 import 'package:pixelvault/core/db/daos/download_repository.dart';
 import 'package:pixelvault/core/db/database.dart';
 import 'package:pixelvault/core/download/download_failure.dart';
+import 'package:pixelvault/core/download/download_item.dart';
 import 'package:pixelvault/core/download/download_manager.dart';
 import 'package:pixelvault/core/download/download_progress_tracker.dart';
 import 'package:pixelvault/core/download/download_status.dart';
@@ -149,6 +150,13 @@ void main() {
         httpDownloadsDir: stagingDir,
       );
 
+  /// The single attempt in the tracker. Attempt ids are `downloads` row ids,
+  /// not the catalog id a test passes to `_httpFile`.
+  DownloadItem? onlyAttempt() {
+    final all = container.read(downloadProgressTrackerProvider);
+    return all.length == 1 ? all.single : null;
+  }
+
   group('HTTP download integrity', () {
     test(
       'a connection that drops mid-transfer fails instead of reporting success',
@@ -175,7 +183,7 @@ void main() {
         // 3 attempts, each with its own backoff, plus the 1s pre-run delay.
         await Future.delayed(const Duration(seconds: 8));
 
-        final item = tracker.get(1);
+        final item = onlyAttempt();
         expect(item?.status, DownloadStatus.failed);
         expect(item?.failureReason, DownloadFailureReason.incomplete);
         // The truncated bytes are still at the destination for a resume to
@@ -202,7 +210,7 @@ void main() {
       await manager.startDownload(_httpFile(2, fileSize: 10));
       await Future.delayed(const Duration(milliseconds: 2500));
 
-      final item = tracker.get(2);
+      final item = onlyAttempt();
       expect(item?.status, DownloadStatus.completed);
       // "Baixa e não dá para ver onde foi baixado" — the destination is now
       // part of the record.
@@ -234,11 +242,11 @@ void main() {
       await manager.startDownload(_httpFile(3, fileSize: 100));
       await Future.delayed(const Duration(seconds: 8));
 
-      expect(tracker.get(3)?.status, DownloadStatus.failed);
+      expect(onlyAttempt()?.status, DownloadStatus.failed);
       // Losing these bytes on every hiccup is what forced a full
       // re-download; they must survive the failure so a retry can resume.
       expect(destinationBytes, isNotEmpty);
-      expect(tracker.get(3)?.downloadedBytes, greaterThan(0));
+      expect(onlyAttempt()?.downloadedBytes, greaterThan(0));
     }, timeout: const Timeout(Duration(seconds: 30)));
   });
 
@@ -270,14 +278,14 @@ void main() {
 
       final manager = buildManager(dio);
       await manager.restore();
-      await manager.retryDownload(30);
+      await manager.retryDownload(record.id);
       await Future.delayed(const Duration(milliseconds: 2500));
 
       expect(capturedHeaders?['Range'], 'bytes=5-',
           reason: 'must ask the server to continue from the bytes already there');
       expect(destinationBytes, [...List.filled(5, 65), ...List.filled(5, 66)],
           reason: 'must append onto the destination, not restart it');
-      expect(tracker.get(30)?.status, DownloadStatus.completed);
+      expect(tracker.get(record.id)?.status, DownloadStatus.completed);
     }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('never appends onto a file this download did not write', () async {
@@ -305,7 +313,7 @@ void main() {
 
       expect(capturedHeaders?.containsKey('Range'), isFalse);
       expect(destinationBytes, List.filled(10, 66));
-      expect(tracker.get(31)?.status, DownloadStatus.completed);
+      expect(onlyAttempt()?.status, DownloadStatus.completed);
     }, timeout: const Timeout(Duration(seconds: 30)));
   });
 
@@ -351,14 +359,14 @@ void main() {
       );
       await manager.restore();
 
-      final restored = freshTracker.get(4);
+      final restored = freshTracker.get(record.id);
       expect(restored, isNotNull, reason: 'the queue must survive a restart');
       // Its worker is gone, so it comes back stopped — the state the UI
       // already renders with a retry/resume button.
       expect(restored!.status, DownloadStatus.stopped);
       expect(restored.progress, closeTo(0.42, 0.001));
       expect(restored.downloadedBytes, 42);
-      expect(freshTracker.canRetryDownload(4), isTrue);
+      expect(freshTracker.canRetryDownload(record.id), isTrue);
     });
 
     test('completed downloads persist as history', () async {
@@ -387,36 +395,8 @@ void main() {
 
       final remaining = await downloadRepo.getAll();
       expect(remaining, hasLength(1));
-      expect(remaining.first.id, 7);
+      expect(remaining.first.id, running.id);
     });
-
-    test('re-downloading the same file reuses its history row instead of duplicating it', () async {
-      final dio = Dio()
-        ..httpClientAdapter = _FakeAdapter((options) {
-          return ResponseBody(
-            Stream.fromIterable([Uint8List.fromList(List.filled(10, 1))]),
-            200,
-            headers: {
-              Headers.contentLengthHeader: ['10'],
-            },
-          );
-        });
-
-      final manager = buildManager(dio);
-      final file = _httpFile(20, fileSize: 10);
-
-      await manager.startDownload(file);
-      await Future.delayed(const Duration(milliseconds: 2500));
-      expect(tracker.get(20)?.status, DownloadStatus.completed);
-      final firstRecordId = tracker.get(20)?.recordId;
-
-      await manager.startDownload(file);
-      await Future.delayed(const Duration(milliseconds: 2500));
-
-      expect(tracker.get(20)?.recordId, firstRecordId);
-      expect(await downloadRepo.getAll(), hasLength(1),
-          reason: 'the history holds one entry per file, not one per attempt');
-    }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('history is keyed independently of the catalog, so a rescan cannot collide', () async {
       // Two different games that both ended up with catalog id 1 (SQLite
@@ -426,7 +406,7 @@ void main() {
 
       final all = await downloadRepo.getAll();
       expect(all, hasLength(2), reason: 'one must not overwrite the other');
-      expect(all.map((d) => d.recordId).toSet(), hasLength(2));
+      expect(all.map((d) => d.id).toSet(), hasLength(2));
     });
   });
 }

@@ -7,6 +7,7 @@ import 'package:pixelvault/core/db/database.dart';
 import 'package:pixelvault/core/providers.dart';
 import 'package:pixelvault/core/router/app_router.dart';
 import 'package:pixelvault/core/router/scaffold_with_nav_bar.dart';
+import 'package:pixelvault/features/esde_setup/esde_setup_screen.dart';
 import 'package:pixelvault/features/language_select/language_select_screen.dart';
 import 'package:pixelvault/features/onboarding/onboarding_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,10 +23,14 @@ void main() {
     WidgetTester tester, {
     String? localeCode,
     bool onboardingCompleted = false,
+    // Most of these cases are about the steps before it, so the ES-DE
+    // question counts as answered unless a test says otherwise.
+    bool esdePromptAnswered = true,
   }) async {
     SharedPreferences.setMockInitialValues({
       'locale_code': ?localeCode,
       'onboarding_completed': onboardingCompleted,
+      'esde_prompt_answered': esdePromptAnswered,
     });
     final db = AppDatabase(NativeDatabase.memory());
     final container = ProviderContainer(
@@ -47,18 +52,14 @@ void main() {
     // pumpAndSettle would spin forever while a CircularProgressIndicator is
     // showing (e.g. during the async catalog-seeding FutureProvider), so
     // pump a bounded number of frames instead — same pattern as widget_test.dart.
-    for (var i = 0; i < 30; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    await pumpFrames(tester, 30);
     return container;
   }
 
   /// Navigates the already-pumped app to [location] and lets redirects settle.
   Future<void> goTo(WidgetTester tester, ProviderContainer container, String location) async {
     container.read(appRouterProvider).go(location);
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    await pumpFrames(tester, 10, const Duration(milliseconds: 50));
   }
 
   /// Disposes the widget tree before the test's automatic "no pending
@@ -139,6 +140,44 @@ void main() {
     });
   });
 
+  group('the ES-DE question, after onboarding', () {
+    testWidgets('onboarding done but the question unanswered -> ES-DE setup', (tester) async {
+      await pumpApp(tester, localeCode: 'pt', onboardingCompleted: true, esdePromptAnswered: false);
+      expect(find.byType(EsDeSetupScreen), findsOneWidget);
+      expect(find.byType(ScaffoldWithGengarNavBar), findsNothing);
+      await finish(tester);
+    });
+
+    testWidgets('skipping onboarding leads to the question, not straight into the app', (tester) async {
+      await pumpApp(tester, localeCode: 'pt', esdePromptAnswered: false);
+      await tester.tap(find.text('Saltar'));
+      await pumpFrames(tester, 20);
+
+      expect(find.byType(EsDeSetupScreen), findsOneWidget);
+      await finish(tester);
+    });
+
+    testWidgets('the app is unreachable until the question is answered', (tester) async {
+      final container = await pumpApp(tester, localeCode: 'pt', onboardingCompleted: true, esdePromptAnswered: false);
+      await goTo(tester, container, '/platforms');
+      expect(find.byType(EsDeSetupScreen), findsOneWidget);
+      await finish(tester);
+    });
+
+    testWidgets('"not now" goes on to the app, and the question is not asked again', (tester) async {
+      final container = await pumpApp(tester, localeCode: 'pt', onboardingCompleted: true, esdePromptAnswered: false);
+
+      await tester.tap(find.byKey(const Key('esde_setup_skip_button')));
+      await pumpFrames(tester, 20);
+      expect(find.byType(ScaffoldWithGengarNavBar), findsOneWidget);
+
+      await goTo(tester, container, '/esde-setup');
+      expect(find.byType(EsDeSetupScreen), findsNothing);
+      expect(find.byType(ScaffoldWithGengarNavBar), findsOneWidget);
+      await finish(tester);
+    });
+  });
+
   testWidgets(
     'regression: fresh launch with no locale never loops between /language-select and /onboarding',
     (tester) async {
@@ -153,4 +192,14 @@ void main() {
       await finish(tester);
     },
   );
+}
+
+Future<void> pumpFrames(
+  WidgetTester tester,
+  int count, [
+  Duration step = const Duration(milliseconds: 100),
+]) async {
+  for (var i = 0; i < count; i++) {
+    await tester.pump(step);
+  }
 }

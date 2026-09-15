@@ -6,6 +6,7 @@ import '../db/database.dart';
 import '../models/url_entry.dart';
 import 'file_naming.dart';
 import 'file_parsing.dart';
+import 'rom_title.dart';
 import 'scraping_constants.dart';
 import 'torrent_scraper.dart';
 
@@ -41,9 +42,13 @@ class NativeTorrentScraper implements TorrentScraper {
       final fileName =
           resolvedName.isEmpty ? FileNaming.fallbackName(entry.fileIndex, cleanName) : resolvedName;
       final extension = FileNaming.extensionOf(fileName);
+      // Same title rule as the HTTP scraper, so a game's files group
+      // together whichever kind of source they came from. The entry's own
+      // name is a path inside the torrent, folders and all.
+      final title = RomTitle.forCatalog(fileName: fileName, displayName: cleanName);
 
       companions.add(DownloadableFilesCompanion.insert(
-        name: cleanName,
+        name: title,
         fileName: fileName,
         consoleId: consoleId,
         downloadUrl: urlEntry.url,
@@ -51,6 +56,7 @@ class NativeTorrentScraper implements TorrentScraper {
         fileExtension: Value(extension),
         torrentFileIndex: Value(entry.fileIndex),
         torrentMagnet: Value(urlEntry.url),
+        groupKey: Value(RomTitle.key(title)),
       ));
 
       tagsPerFile.add([...tags, FileParsing.normalizeTag(urlEntry.contentType.toJson())]);

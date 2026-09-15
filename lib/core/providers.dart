@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show StreamProvider;
 import 'package:pixelvault_torrent/pixelvault_torrent.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:saf_util/saf_util.dart';
 
 import 'db/daos/catalog_repository.dart';
 import 'db/daos/download_repository.dart';
@@ -13,6 +14,9 @@ import 'db/seed/consoles_seed_loader.dart';
 import 'deeplink/source_install_client.dart';
 import 'download/download_item.dart';
 import 'download/download_manager.dart';
+
+// Screens that start downloads read the outcome; they already import this file.
+export 'download/download_manager.dart' show StartDownloadResult;
 import 'download/download_progress_tracker.dart';
 import 'scraping/http_directory_scraper.dart';
 import 'scraping/native_torrent_scraper.dart';
@@ -20,6 +24,8 @@ import 'scraping/scrape_orchestrator.dart';
 import 'scraping/torrent_scraper.dart';
 import 'settings/settings_repository.dart';
 import 'state/rescan_state.dart';
+import 'storage/esde_setup_service.dart';
+import 'storage/installed_games_index.dart';
 import 'storage/saf_storage_helper.dart';
 
 part 'providers.g.dart';
@@ -132,6 +138,28 @@ Future<void> ensureCatalogSeeded(Ref ref) async {
 
 @Riverpod(keepAlive: true)
 SafStorageHelper safStorageHelper(Ref ref) => SafStorageHelper();
+
+/// What each destination folder already holds, behind the Library's
+/// "already in the folder" badge.
+@Riverpod(keepAlive: true)
+InstalledGamesIndex installedGamesIndex(Ref ref) {
+  final saf = SafUtil();
+  return InstalledGamesIndex(
+    lister: saf.list,
+    childLookup: (parentUri, name) async => (await saf.child(parentUri, [name]))?.uri,
+  );
+}
+
+/// ES-DE folder setup, shared by the first-run question and Settings.
+@Riverpod(keepAlive: true)
+EsDeSetupService esDeSetupService(Ref ref) {
+  return EsDeSetupService(
+    pickDirectory: () async =>
+        (await SafUtil().pickDirectory(writePermission: true, persistablePermission: true))?.uri,
+    storage: SafEsDeStorage(),
+    settings: ref.watch(settingsProvider.notifier),
+  );
+}
 
 @Riverpod(keepAlive: true)
 SourceInstallClient sourceInstallClient(Ref ref) {

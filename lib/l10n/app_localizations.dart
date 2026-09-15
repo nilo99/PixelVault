@@ -1123,6 +1123,180 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'ocorreu um erro inesperado'**
   String get errorUnexpected;
+
+  /// No description provided for @commonDelete.
+  ///
+  /// In pt, this message translates to:
+  /// **'Apagar'**
+  String get commonDelete;
+
+  /// No description provided for @downloadsStatusCancelled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cancelado'**
+  String get downloadsStatusCancelled;
+
+  /// No description provided for @downloadsDeleteTooltip.
+  ///
+  /// In pt, this message translates to:
+  /// **'Apagar do histórico'**
+  String get downloadsDeleteTooltip;
+
+  /// No description provided for @downloadsSelectTooltip.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecionar'**
+  String get downloadsSelectTooltip;
+
+  /// No description provided for @downloadsExitSelectionTooltip.
+  ///
+  /// In pt, this message translates to:
+  /// **'Terminar seleção'**
+  String get downloadsExitSelectionTooltip;
+
+  /// No description provided for @downloadsSelectedCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =1{1 selecionado} other{{count} selecionados}}'**
+  String downloadsSelectedCount(num count);
+
+  /// No description provided for @downloadsDeleteSelected.
+  ///
+  /// In pt, this message translates to:
+  /// **'Apagar selecionados'**
+  String get downloadsDeleteSelected;
+
+  /// No description provided for @downloadsDeleteSelectedConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =1{Apagar 1 entrada do histórico?} other{Apagar {count} entradas do histórico?}}'**
+  String downloadsDeleteSelectedConfirmTitle(num count);
+
+  /// No description provided for @downloadsClearHistoryConfirmTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Limpar todo o histórico?'**
+  String get downloadsClearHistoryConfirmTitle;
+
+  /// No description provided for @downloadsHistoryDeleteConfirmBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Os jogos que já descarregaste ficam na pasta. Só as entradas do histórico são apagadas.'**
+  String get downloadsHistoryDeleteConfirmBody;
+
+  /// No description provided for @libraryDownloadResumedSnackbar.
+  ///
+  /// In pt, this message translates to:
+  /// **'A retomar {name}'**
+  String libraryDownloadResumedSnackbar(String name);
+
+  /// No description provided for @libraryDownloadAlreadyActiveSnackbar.
+  ///
+  /// In pt, this message translates to:
+  /// **'{name} já está a descarregar'**
+  String libraryDownloadAlreadyActiveSnackbar(String name);
+
+  /// No description provided for @libraryInstalledBadge.
+  ///
+  /// In pt, this message translates to:
+  /// **'Já está na pasta'**
+  String get libraryInstalledBadge;
+
+  /// No description provided for @libraryVariantInstalledBadge.
+  ///
+  /// In pt, this message translates to:
+  /// **'Na pasta'**
+  String get libraryVariantInstalledBadge;
+
+  /// No description provided for @esdeSetupTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Usas o ES-DE?'**
+  String get esdeSetupTitle;
+
+  /// No description provided for @esdeSetupBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se já tens a pasta ROMs do ES-DE neste dispositivo, apontamos cada consola para a subpasta certa (psx, ps2, n3ds…) e os jogos vão direitos para onde o ES-DE os procura.'**
+  String get esdeSetupBody;
+
+  /// No description provided for @esdeSetupPickButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escolher a pasta ROMs'**
+  String get esdeSetupPickButton;
+
+  /// No description provided for @esdeSetupSkipButton.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora não'**
+  String get esdeSetupSkipButton;
+
+  /// No description provided for @esdeSetupDone.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =1{1 consola configurada.} other{{count} consolas configuradas.}}'**
+  String esdeSetupDone(num count);
+
+  /// No description provided for @esdeSetupCreatedFolders.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =1{Criada 1 pasta que faltava.} other{Criadas {count} pastas que faltavam.}}'**
+  String esdeSetupCreatedFolders(num count);
+
+  /// No description provided for @esdeSetupNotEsde.
+  ///
+  /// In pt, this message translates to:
+  /// **'Essa pasta não parece ser a pasta ROMs do ES-DE. Escolhe a pasta que contém psx, ps2, snes…'**
+  String get esdeSetupNotEsde;
+
+  /// No description provided for @esdeSetupFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível configurar as pastas.'**
+  String get esdeSetupFailed;
+
+  /// No description provided for @settingsEsdeTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pastas do ES-DE'**
+  String get settingsEsdeTitle;
+
+  /// No description provided for @settingsEsdeSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Configurar a partir da pasta ROMs'**
+  String get settingsEsdeSubtitle;
+
+  /// No description provided for @settingsDiagnosticsSection.
+  ///
+  /// In pt, this message translates to:
+  /// **'Diagnóstico'**
+  String get settingsDiagnosticsSection;
+
+  /// No description provided for @settingsDiagnosticsCopyTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Copiar registo de erros'**
+  String get settingsDiagnosticsCopyTitle;
+
+  /// No description provided for @settingsDiagnosticsCopySubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Para enviares se algo correr mal'**
+  String get settingsDiagnosticsCopySubtitle;
+
+  /// No description provided for @settingsDiagnosticsCopied.
+  ///
+  /// In pt, this message translates to:
+  /// **'Registo copiado.'**
+  String get settingsDiagnosticsCopied;
+
+  /// No description provided for @settingsDiagnosticsEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ainda não há erros registados.'**
+  String get settingsDiagnosticsEmpty;
 }
 
 class _AppLocalizationsDelegate

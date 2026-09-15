@@ -227,5 +227,76 @@
   "errorLinkExpired": "this link is no longer valid",
   "errorServerResponse": "invalid server response",
   "errorSourceUnreachable": "could not reach the server",
-  "errorUnexpected": "an unexpected error occurred"
+  "errorUnexpected": "an unexpected error occurred",
+  "commonDelete": "Delete",
+  "downloadsStatusCancelled": "Cancelled",
+  "downloadsDeleteTooltip": "Delete from history",
+  "downloadsSelectTooltip": "Select",
+  "downloadsExitSelectionTooltip": "Done selecting",
+  "downloadsSelectedCount": "{count, plural, =1{1 selected} other{{count} selected}}",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsDeleteSelected": "Delete selected",
+  "downloadsDeleteSelectedConfirmTitle": "{count, plural, =1{Delete 1 history entry?} other{Delete {count} history entries?}}",
+  "@downloadsDeleteSelectedConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsClearHistoryConfirmTitle": "Clear the whole history?",
+  "downloadsHistoryDeleteConfirmBody": "Games you already downloaded stay in their folder. Only the history entries are removed.",
+  "libraryDownloadResumedSnackbar": "Resuming {name}",
+  "@libraryDownloadResumedSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryDownloadAlreadyActiveSnackbar": "{name} is already downloading",
+  "@libraryDownloadAlreadyActiveSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryInstalledBadge": "Already in your folder",
+  "libraryVariantInstalledBadge": "In folder",
+  "esdeSetupTitle": "Do you use ES-DE?",
+  "esdeSetupBody": "If this device already has the ES-DE ROMs folder, each console gets pointed at the right subfolder (psx, ps2, n3ds…) so games land exactly where ES-DE looks for them.",
+  "esdeSetupPickButton": "Choose the ROMs folder",
+  "esdeSetupSkipButton": "Not now",
+  "esdeSetupDone": "{count, plural, =1{1 console configured.} other{{count} consoles configured.}}",
+  "@esdeSetupDone": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupCreatedFolders": "{count, plural, =1{Created 1 missing folder.} other{Created {count} missing folders.}}",
+  "@esdeSetupCreatedFolders": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupNotEsde": "That does not look like the ES-DE ROMs folder. Pick the folder that contains psx, ps2, snes…",
+  "esdeSetupFailed": "Could not set up the folders.",
+  "settingsEsdeTitle": "ES-DE folders",
+  "settingsEsdeSubtitle": "Set up from the ROMs folder",
+  "settingsDiagnosticsSection": "Diagnostics",
+  "settingsDiagnosticsCopyTitle": "Copy error log",
+  "settingsDiagnosticsCopySubtitle": "To send along if something goes wrong",
+  "settingsDiagnosticsCopied": "Log copied.",
+  "settingsDiagnosticsEmpty": "No errors recorded yet."
 }

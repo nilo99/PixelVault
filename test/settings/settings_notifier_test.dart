@@ -80,6 +80,38 @@ void main() {
     });
   });
 
+  group('setConsoleDownloadDirectories', () {
+    test('sets several consoles at once and keeps the folders of the rest', () async {
+      await container.read(settingsProvider.future);
+      final notifier = container.read(settingsProvider.notifier);
+      await notifier.setConsoleDownloadDirectory('rompacks_proper_romsets', 'content://tree/packs');
+      await notifier.setConsoleDownloadDirectory('sony_playstation', 'content://tree/old');
+
+      await notifier.setConsoleDownloadDirectories({
+        'sony_playstation': 'content://tree/ROMs/psx',
+        'nintendo_nintendo_3ds': 'content://tree/ROMs/n3ds',
+      });
+
+      expect(notifier.current.consoleDownloadDirectories, {
+        'rompacks_proper_romsets': 'content://tree/packs',
+        'sony_playstation': 'content://tree/ROMs/psx',
+        'nintendo_nintendo_3ds': 'content://tree/ROMs/n3ds',
+      });
+    });
+  });
+
+  test('the ES-DE question starts unanswered and its answer persists', () async {
+    await container.read(settingsProvider.future);
+    final notifier = container.read(settingsProvider.notifier);
+    expect(notifier.current.esdePromptAnswered, isFalse);
+
+    await notifier.setEsdePromptAnswered(true);
+
+    final freshContainer = ProviderContainer();
+    addTearDown(freshContainer.dispose);
+    expect((await freshContainer.read(settingsProvider.future)).esdePromptAnswered, isTrue);
+  });
+
   test('persisted values survive a fresh notifier reading the same SharedPreferences store', () async {
     await container.read(settingsProvider.future);
     final notifier = container.read(settingsProvider.notifier);

@@ -10,6 +10,7 @@ import '../theme/gengar_colors.dart';
 import '../theme/gengar_components.dart';
 import '../../features/about/about_screen.dart';
 import '../../features/downloads/downloads_screen.dart';
+import '../../features/esde_setup/esde_setup_screen.dart';
 import '../../features/language_select/language_select_screen.dart';
 import '../../features/library/library_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
@@ -29,6 +30,9 @@ part 'app_router.g.dart';
 /// provides via `rootNavigatorKey.currentContext`.
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// The screens of the first-run sequence, in order.
+const _firstRunRoutes = {'/language-select', '/onboarding', '/esde-setup'};
+
 @riverpod
 GoRouter appRouter(Ref ref) {
   // `select` so the router only rebuilds when these specific fields change —
@@ -38,10 +42,20 @@ GoRouter appRouter(Ref ref) {
   // were.
   final languageChosen = ref.watch(settingsProvider.select((s) => s.value?.localeCode != null));
   final onboardingDone = ref.watch(settingsProvider.select((s) => s.value?.onboardingCompleted ?? false));
+  final esdeAnswered = ref.watch(settingsProvider.select((s) => s.value?.esdePromptAnswered ?? false));
+
+  /// The first-run step still to do — language, then onboarding, then the
+  /// ES-DE question — or `null` once all of them are done.
+  String? pendingFirstRunStep() {
+    if (!languageChosen) return '/language-select';
+    if (!onboardingDone) return '/onboarding';
+    if (!esdeAnswered) return '/esde-setup';
+    return null;
+  }
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: !languageChosen ? '/language-select' : (onboardingDone ? '/platforms' : '/onboarding'),
+    initialLocation: pendingFirstRunStep() ?? '/platforms',
     errorBuilder: (context, state) {
       final l10n = AppLocalizations.of(context)!;
       return Scaffold(
@@ -68,16 +82,15 @@ GoRouter appRouter(Ref ref) {
       );
     },
     redirect: (context, state) {
-      final goingToLanguageSelect = state.matchedLocation == '/language-select';
-      final goingToOnboarding = state.matchedLocation == '/onboarding';
-      // Language picker first, then onboarding, then the main app. The
-      // onboarding checks below must only apply once a language has been
-      // chosen — otherwise a fresh launch bounces language-select ->
-      // onboarding -> language-select forever (redirect loop).
-      if (!languageChosen) return goingToLanguageSelect ? null : '/language-select';
-      if (goingToLanguageSelect) return onboardingDone ? '/platforms' : '/onboarding';
-      if (!onboardingDone && !goingToOnboarding) return '/onboarding';
-      if (onboardingDone && goingToOnboarding) return '/platforms';
+      // While a first-run step is pending it is the only reachable screen,
+      // and once the sequence is done none of its screens are. Redirecting
+      // to the pending step itself returns null, so this can never loop —
+      // unlike the earlier pairwise checks, which bounced between
+      // /onboarding and /language-select forever on a fresh install.
+      final location = state.matchedLocation;
+      final pending = pendingFirstRunStep();
+      if (pending != null) return location == pending ? null : pending;
+      if (_firstRunRoutes.contains(location)) return '/platforms';
       return null;
     },
     routes: [
@@ -88,6 +101,10 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/esde-setup',
+        builder: (context, state) => const EsDeSetupScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

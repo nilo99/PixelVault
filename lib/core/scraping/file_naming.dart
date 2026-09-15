@@ -35,10 +35,21 @@ abstract final class FileNaming {
 
   /// Archive extensions whose *inner* extension is the interesting one when
   /// showing the user what they are actually getting — see
-  /// [contentExtensionOf]. Mirrors `ArchiveExtensions.isExtractable`.
+  /// [contentExtensionOf]. Also the list the downloader extracts, through
+  /// [isArchiveExtension].
   static const _archiveExtensions = {
     '.zip', '.7z', '.rar', '.tar', '.gz', '.tgz', '.bz2', '.xz', '.cab',
   };
+
+  /// Whether [extension] (with or without its dot, in any case) is an
+  /// archive the app unpacks. `ArchiveExtensions.isExtractable` defers to
+  /// this, so what the Library labels a file as and what the downloader
+  /// actually extracts cannot disagree.
+  static bool isArchiveExtension(String extension) {
+    if (extension.isEmpty) return false;
+    final lower = extension.toLowerCase();
+    return _archiveExtensions.contains(lower.startsWith('.') ? lower : '.$lower');
+  }
 
   /// The bare, filesystem-safe file name [href] refers to.
   ///

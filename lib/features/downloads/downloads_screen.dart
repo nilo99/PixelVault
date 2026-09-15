@@ -10,18 +10,19 @@ import '../../core/providers.dart';
 import '../../core/storage/saf_storage_helper.dart';
 import '../../core/theme/gengar_colors.dart';
 import '../../core/theme/gengar_components.dart';
+import '../../core/theme/gengar_metrics.dart';
 import '../../core/theme/gengar_typography.dart';
 import '../../core/utils/error_messages.dart';
 import '../../core/utils/format_bytes.dart';
 import '../../l10n/app_localizations.dart';
 
-/// Live progress list of in-progress downloads plus the persisted history of
-/// finished/failed ones — wired to `DownloadProgressTrackerNotifier`, which
-/// `DownloadManager.restore()` seeds from the `downloads` table on startup.
+/// The queue — running and interrupted downloads — plus the permanent history
+/// of finished, failed and cancelled ones.
 ///
-/// The history tab exists because a completed download used to vanish from
-/// the list the moment the app restarted, taking with it the only record of
-/// what had been downloaded and where it went.
+/// History leaves only from here, and only when the user asks: a single
+/// entry, a selection, or all of it (the last two confirmed). Nothing else in
+/// the app deletes it, and removing an entry never touches a file the user
+/// downloaded.
 class DownloadsScreen extends ConsumerStatefulWidget {
   const DownloadsScreen({super.key});
 
@@ -31,16 +32,76 @@ class DownloadsScreen extends ConsumerStatefulWidget {
 
 class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
   bool _showHistory = false;
+  bool _selecting = false;
+  final _selected = <int>{};
+
+  void _setTab({required bool history}) {
+    setState(() {
+      _showHistory = history;
+      _selecting = false;
+      _selected.clear();
+    });
+  }
+
+  Future<bool> _confirmDelete(String title) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(l10n.downloadsHistoryDeleteConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          TextButton(
+            key: const Key('downloads_confirm_delete_button'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.commonDelete),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  Future<void> _deleteSelected(Set<int> ids) async {
+    if (ids.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
+    if (!await _confirmDelete(l10n.downloadsDeleteSelectedConfirmTitle(ids.length))) return;
+    await ref.read(downloadManagerProvider).deleteHistoryEntries(ids);
+    if (!mounted) return;
+    setState(() {
+      _selecting = false;
+      _selected.clear();
+    });
+  }
+
+  Future<void> _clearAll() async {
+    final l10n = AppLocalizations.of(context)!;
+    if (!await _confirmDelete(l10n.downloadsClearHistoryConfirmTitle)) return;
+    await ref.read(downloadManagerProvider).clearHistory();
+    if (!mounted) return;
+    setState(() {
+      _selecting = false;
+      _selected.clear();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final metrics = GengarMetrics.of(context);
     final downloads = ref.watch(downloadProgressTrackerProvider);
 
     final active = downloads.where((d) => !d.isTerminal).toList();
     final history = downloads.where((d) => d.isTerminal).toList()
       ..sort((a, b) => (b.completedAt ?? b.createdAt ?? DateTime(0))
           .compareTo(a.completedAt ?? a.createdAt ?? DateTime(0)));
+    // Entries that vanished (deleted, or cleared) drop out of the selection.
+    final historyIds = {for (final d in history) d.id};
+    final selected = _selected.where(historyIds.contains).toSet();
 
     final running = downloads.where((d) => d.isActive).length;
     final totalSpeed = downloads
@@ -49,6 +110,7 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
     final queued = downloads.where((d) => d.status == DownloadStatus.stopped).length;
 
     final visible = _showHistory ? history : active;
+    final selectionMode = _showHistory && _selecting;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -56,9 +118,12 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
         child: Column(
           children: [
             GengarScreenHeader(eyebrow: l10n.downloadsEyebrow, title: l10n.downloadsTitle),
-            if (downloads.isNotEmpty)
+            // On an auxiliary display the three stat cards cost more height
+            // than the list can spare; the nav bar badge already carries the
+            // active count.
+            if (downloads.isNotEmpty && !metrics.isTiny)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                padding: EdgeInsets.fromLTRB(metrics.gutter, metrics.gap(14), metrics.gutter, 0),
                 child: Row(
                   children: [
                     Expanded(child: GengarStatCard(value: '$running', label: l10n.downloadsActiveLabel)),
@@ -82,35 +147,79 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              padding: EdgeInsets.fromLTRB(metrics.gutter, metrics.gap(14), metrics.gutter, 0),
               child: Row(
                 children: [
-                  _SegmentButton(
-                    key: const Key('downloads_tab_active'),
-                    label: '${l10n.downloadsTabActive} (${active.length})',
-                    selected: !_showHistory,
-                    onTap: () => setState(() => _showHistory = false),
-                  ),
-                  const SizedBox(width: 8),
-                  _SegmentButton(
-                    key: const Key('downloads_tab_history'),
-                    label: '${l10n.downloadsTabHistory} (${history.length})',
-                    selected: _showHistory,
-                    onTap: () => setState(() => _showHistory = true),
-                  ),
-                  const Spacer(),
-                  if (_showHistory && history.isNotEmpty)
-                    TextButton(
-                      key: const Key('downloads_clear_history'),
-                      onPressed: () => ref.read(downloadManagerProvider).clearHistory(),
-                      child: Text(
-                        l10n.downloadsClearHistory,
-                        style: GengarTypography.monoAccent(fontSize: 10.5, color: GengarColors.onBackgroundMuted),
-                      ),
+                  // The tabs share whatever width is left and ellipsize only
+                  // when they truly have to: on a 240pt display the two
+                  // labels alone are wider than the row.
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: _SegmentButton(
+                            key: const Key('downloads_tab_active'),
+                            label: '${l10n.downloadsTabActive} (${active.length})',
+                            selected: !_showHistory,
+                            onTap: () => _setTab(history: false),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: _SegmentButton(
+                            key: const Key('downloads_tab_history'),
+                            label: '${l10n.downloadsTabHistory} (${history.length})',
+                            selected: _showHistory,
+                            onTap: () => _setTab(history: true),
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  if (_showHistory && history.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    _ActionButton(
+                      key: const Key('downloads_select_button'),
+                      icon: _selecting ? Icons.close_rounded : Icons.checklist_rounded,
+                      tooltip: _selecting ? l10n.downloadsExitSelectionTooltip : l10n.downloadsSelectTooltip,
+                      accent: _selecting,
+                      onTap: () => setState(() {
+                        _selecting = !_selecting;
+                        _selected.clear();
+                      }),
+                    ),
+                    const SizedBox(width: 7),
+                    _ActionButton(
+                      key: const Key('downloads_clear_history'),
+                      icon: Icons.delete_sweep_rounded,
+                      tooltip: l10n.downloadsClearHistory,
+                      onTap: _clearAll,
+                    ),
+                  ],
                 ],
               ),
             ),
+            if (selectionMode)
+              Padding(
+                padding: EdgeInsets.fromLTRB(metrics.gutter, metrics.gap(6), metrics.gutter, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.downloadsSelectedCount(selected.length),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GengarTypography.monoAccent(fontSize: 10.5),
+                      ),
+                    ),
+                    TextButton(
+                      key: const Key('downloads_delete_selected_button'),
+                      onPressed: selected.isEmpty ? null : () => _deleteSelected(selected),
+                      child: Text(l10n.downloadsDeleteSelected),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: visible.isEmpty
                   ? Center(
@@ -137,13 +246,27 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                       ),
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 96),
+                      padding: EdgeInsets.fromLTRB(
+                        metrics.gutter,
+                        metrics.gap(14),
+                        metrics.gutter,
+                        metrics.navBarInset,
+                      ),
                       itemCount: visible.length,
                       separatorBuilder: (context, index) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) => _DownloadTile(
-                        key: Key('downloads_tile_${visible[index].id}'),
-                        item: visible[index],
-                      ),
+                      itemBuilder: (context, index) {
+                        final item = visible[index];
+                        return _DownloadTile(
+                          key: Key('downloads_tile_${item.id}'),
+                          item: item,
+                          selectionMode: selectionMode,
+                          selected: selected.contains(item.id),
+                          onToggleSelected: () => setState(() {
+                            if (!_selected.remove(item.id)) _selected.add(item.id);
+                          }),
+                          onDelete: () => ref.read(downloadManagerProvider).deleteHistoryEntries({item.id}),
+                        );
+                      },
                     ),
             ),
           ],
@@ -168,7 +291,10 @@ class _SegmentButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(9),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          padding: EdgeInsets.symmetric(
+            horizontal: GengarMetrics.of(context).isTiny ? 8 : 12,
+            vertical: 7,
+          ),
           decoration: BoxDecoration(
             color: selected
                 ? GengarColors.primary.withValues(alpha: 0.16)
@@ -180,6 +306,8 @@ class _SegmentButton extends StatelessWidget {
           ),
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GengarTypography.monoAccent(
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
@@ -193,102 +321,132 @@ class _SegmentButton extends StatelessWidget {
 }
 
 class _DownloadTile extends ConsumerWidget {
-  const _DownloadTile({super.key, required this.item});
+  const _DownloadTile({
+    super.key,
+    required this.item,
+    required this.selectionMode,
+    required this.selected,
+    required this.onToggleSelected,
+    required this.onDelete,
+  });
+
   final DownloadItem item;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback onToggleSelected;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final metrics = GengarMetrics.of(context);
     final manager = ref.read(downloadManagerProvider);
     final color = _statusColor(item.status);
     final isProgressing = item.isActive;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: GengarColors.cardFill.withValues(alpha: GengarColors.cardFillOpacity),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: GengarColors.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              GengarProgressRing(
-                progress: isProgressing ? item.progress : (item.status == DownloadStatus.completed ? 1 : null),
-                size: 48,
-                ringColor: color,
-                centerLabel: _centerLabel(item),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: GengarColors.onBackground),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${formatBytes(item.fileSize)}${item.isTorrent ? ' · torrent' : ''}',
-                      style: const TextStyle(fontSize: 11.5, color: GengarColors.onBackgroundMuted),
-                    ),
-                  ],
-                ),
-              ),
-              _StatusChip(status: item.status, color: color),
-            ],
+    return GestureDetector(
+      onTap: selectionMode ? onToggleSelected : null,
+      child: Container(
+        padding: EdgeInsets.all(metrics.isTiny ? 10 : 14),
+        decoration: BoxDecoration(
+          color: selected
+              ? GengarColors.primary.withValues(alpha: 0.10)
+              : GengarColors.cardFill.withValues(alpha: GengarColors.cardFillOpacity),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? GengarColors.primary.withValues(alpha: 0.40) : GengarColors.cardBorder,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(99),
-                  child: SizedBox(
-                    height: 5,
-                    child: LinearProgressIndicator(
-                      value: isProgressing ? item.progress : (item.status == DownloadStatus.completed ? 1 : 0),
-                      backgroundColor: GengarColors.progressTrack,
-                      valueColor: AlwaysStoppedAnimation(color),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                GengarProgressRing(
+                  progress: isProgressing ? item.progress : (item.status == DownloadStatus.completed ? 1 : null),
+                  size: metrics.isTiny ? 36 : 48,
+                  ringColor: color,
+                  centerLabel: _centerLabel(item),
+                ),
+                SizedBox(width: metrics.gap(13)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: GengarColors.onBackground),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${formatBytes(item.fileSize)}${item.isTorrent ? ' · torrent' : ''}',
+                        style: const TextStyle(fontSize: 11.5, color: GengarColors.onBackgroundMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                // The centre label of the ring and the status line underneath
+                // already say what state this is in; on an auxiliary display
+                // the chip is the one thing in this row that can go.
+                if (!metrics.isTiny) _StatusChip(status: item.status, color: color),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: SizedBox(
+                      height: 5,
+                      child: LinearProgressIndicator(
+                        value: isProgressing ? item.progress : (item.status == DownloadStatus.completed ? 1 : 0),
+                        backgroundColor: GengarColors.progressTrack,
+                        valueColor: AlwaysStoppedAnimation(color),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              _Actions(item: item, manager: manager),
+                const SizedBox(width: 10),
+                if (selectionMode)
+                  Checkbox(
+                    key: Key('downloads_select_checkbox_${item.id}'),
+                    value: selected,
+                    onChanged: (_) => onToggleSelected(),
+                  )
+                else
+                  _Actions(item: item, manager: manager, onDelete: onDelete),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Text(_statusLabel(l10n, item), style: GengarTypography.monoAccent(fontSize: 10.5)),
+
+            // Where it landed — the thing the screen could never answer before.
+            if (item.status == DownloadStatus.completed && item.destinationLabel.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              _DestinationRow(item: item),
             ],
-          ),
-          const SizedBox(height: 9),
-          Text(_statusLabel(l10n, item), style: GengarTypography.monoAccent(fontSize: 10.5)),
 
-          // Where it landed — the thing the screen could never answer before.
-          if (item.status == DownloadStatus.completed && item.destinationLabel.isNotEmpty) ...[
-            const SizedBox(height: 7),
-            _DestinationRow(item: item),
-          ],
+            // Why it failed, in the user's language, instead of a bare "failed".
+            if (item.status == DownloadStatus.failed && item.failureReason != null) ...[
+              const SizedBox(height: 7),
+              Text(
+                downloadFailureText(l10n, item.failureReason!),
+                style: const TextStyle(fontSize: 11.5, color: GengarColors.error),
+              ),
+            ],
 
-          // Why it failed, in the user's language, instead of a bare "failed".
-          if (item.status == DownloadStatus.failed && item.failureReason != null) ...[
-            const SizedBox(height: 7),
-            Text(
-              downloadFailureText(l10n, item.failureReason!),
-              style: const TextStyle(fontSize: 11.5, color: GengarColors.error),
-            ),
+            if (item.status == DownloadStatus.stopped && item.downloadedBytes > 0) ...[
+              const SizedBox(height: 7),
+              Text(
+                l10n.downloadsInterruptedNotice,
+                style: const TextStyle(fontSize: 11.5, color: GengarColors.onBackgroundMuted),
+              ),
+            ],
           ],
-
-          if (item.status == DownloadStatus.stopped && item.downloadedBytes > 0) ...[
-            const SizedBox(height: 7),
-            Text(
-              l10n.downloadsInterruptedNotice,
-              style: const TextStyle(fontSize: 11.5, color: GengarColors.onBackgroundMuted),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -301,6 +459,7 @@ class _DownloadTile extends ConsumerWidget {
       DownloadStatus.completed => '✓',
       DownloadStatus.failed => '!',
       DownloadStatus.stopped => '…',
+      DownloadStatus.cancelled => '×',
     };
   }
 
@@ -308,10 +467,10 @@ class _DownloadTile extends ConsumerWidget {
     return switch (status) {
       DownloadStatus.completed => GengarColors.success,
       DownloadStatus.failed => GengarColors.error,
-      DownloadStatus.stopped => GengarColors.onBackgroundMuted,
+      DownloadStatus.stopped || DownloadStatus.cancelled => GengarColors.onBackgroundMuted,
       DownloadStatus.copying => GengarColors.info,
       DownloadStatus.unzipping => GengarColors.infoLight,
-      _ => GengarColors.primary,
+      DownloadStatus.downloading => GengarColors.primary,
     };
   }
 
@@ -324,6 +483,7 @@ class _DownloadTile extends ConsumerWidget {
       DownloadStatus.completed => l10n.downloadsStatusCompleted,
       DownloadStatus.failed => l10n.downloadsStatusFailed,
       DownloadStatus.stopped => l10n.downloadsQueuedLabel,
+      DownloadStatus.cancelled => l10n.downloadsStatusCancelled,
     };
   }
 }
@@ -398,6 +558,7 @@ class _StatusChip extends StatelessWidget {
         DownloadStatus.completed => l10n.downloadsStatusCompleted,
         DownloadStatus.failed => l10n.downloadsChipFailed,
         DownloadStatus.stopped => l10n.downloadsQueuedLabel,
+        DownloadStatus.cancelled => l10n.downloadsStatusCancelled,
       };
 
   @override
@@ -414,14 +575,25 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
+/// Per-tile actions. The queue can be stopped or resumed but not deleted —
+/// a download leaves the queue by finishing, failing or being cancelled,
+/// all of which land it in the history. Only history entries can be deleted.
 class _Actions extends StatelessWidget {
-  const _Actions({required this.item, required this.manager});
+  const _Actions({required this.item, required this.manager, required this.onDelete});
   final DownloadItem item;
   final DownloadManager manager;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final deleteButton = _ActionButton(
+      key: Key('downloads_delete_button_${item.id}'),
+      icon: Icons.delete_outline_rounded,
+      tooltip: l10n.downloadsDeleteTooltip,
+      onTap: onDelete,
+    );
+
     switch (item.status) {
       case DownloadStatus.downloading:
       case DownloadStatus.copying:
@@ -432,7 +604,6 @@ class _Actions extends StatelessWidget {
           tooltip: l10n.downloadsStopTooltip,
           onTap: () => manager.cancelDownload(item.id),
         );
-      case DownloadStatus.failed:
       case DownloadStatus.stopped:
         return Row(
           mainAxisSize: MainAxisSize.min,
@@ -448,20 +619,33 @@ class _Actions extends StatelessWidget {
             ),
             const SizedBox(width: 7),
             _ActionButton(
-              key: Key('downloads_remove_button_${item.id}'),
+              key: Key('downloads_cancel_button_${item.id}'),
               icon: Icons.close_rounded,
-              tooltip: l10n.downloadsRemoveTooltip,
-              onTap: () => manager.deleteDownload(item.id),
+              tooltip: l10n.commonCancel,
+              onTap: () => manager.cancelDownload(item.id),
             ),
           ],
         );
-      case DownloadStatus.completed:
-        return _ActionButton(
-          key: Key('downloads_remove_button_${item.id}'),
-          icon: Icons.close_rounded,
-          tooltip: l10n.downloadsRemoveFromListTooltip,
-          onTap: () => manager.deleteDownload(item.id),
+      case DownloadStatus.failed:
+      case DownloadStatus.cancelled:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ActionButton(
+              key: Key('downloads_retry_button_${item.id}'),
+              icon: Icons.refresh_rounded,
+              tooltip: item.status == DownloadStatus.failed && item.downloadedBytes > 0
+                  ? l10n.downloadsResumeTooltip
+                  : l10n.downloadsRetryTooltip,
+              accent: true,
+              onTap: () => manager.retryDownload(item.id),
+            ),
+            const SizedBox(width: 7),
+            deleteButton,
+          ],
         );
+      case DownloadStatus.completed:
+        return deleteButton;
     }
   }
 }

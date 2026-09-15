@@ -649,4 +649,131 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get errorUnexpected => 'se produjo un error inesperado';
+
+  @override
+  String get commonDelete => 'Eliminar';
+
+  @override
+  String get downloadsStatusCancelled => 'Cancelado';
+
+  @override
+  String get downloadsDeleteTooltip => 'Eliminar del historial';
+
+  @override
+  String get downloadsSelectTooltip => 'Seleccionar';
+
+  @override
+  String get downloadsExitSelectionTooltip => 'Terminar selección';
+
+  @override
+  String downloadsSelectedCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seleccionados',
+      one: '1 seleccionado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsDeleteSelected => 'Eliminar seleccionados';
+
+  @override
+  String downloadsDeleteSelectedConfirmTitle(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '¿Eliminar $count entradas del historial?',
+      one: '¿Eliminar 1 entrada del historial?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsClearHistoryConfirmTitle => '¿Borrar todo el historial?';
+
+  @override
+  String get downloadsHistoryDeleteConfirmBody =>
+      'Los juegos que ya descargaste se quedan en su carpeta. Solo se eliminan las entradas del historial.';
+
+  @override
+  String libraryDownloadResumedSnackbar(String name) {
+    return 'Reanudando $name';
+  }
+
+  @override
+  String libraryDownloadAlreadyActiveSnackbar(String name) {
+    return '$name ya se está descargando';
+  }
+
+  @override
+  String get libraryInstalledBadge => 'Ya está en tu carpeta';
+
+  @override
+  String get libraryVariantInstalledBadge => 'En la carpeta';
+
+  @override
+  String get esdeSetupTitle => '¿Usas ES-DE?';
+
+  @override
+  String get esdeSetupBody =>
+      'Si este dispositivo ya tiene la carpeta ROMs de ES-DE, apuntamos cada consola a la subcarpeta correcta (psx, ps2, n3ds…) y los juegos van directos a donde ES-DE los busca.';
+
+  @override
+  String get esdeSetupPickButton => 'Elegir la carpeta ROMs';
+
+  @override
+  String get esdeSetupSkipButton => 'Ahora no';
+
+  @override
+  String esdeSetupDone(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count consolas configuradas.',
+      one: '1 consola configurada.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String esdeSetupCreatedFolders(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Creadas $count carpetas que faltaban.',
+      one: 'Creada 1 carpeta que faltaba.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get esdeSetupNotEsde =>
+      'Esa carpeta no parece la carpeta ROMs de ES-DE. Elige la que contiene psx, ps2, snes…';
+
+  @override
+  String get esdeSetupFailed => 'No se pudieron configurar las carpetas.';
+
+  @override
+  String get settingsEsdeTitle => 'Carpetas de ES-DE';
+
+  @override
+  String get settingsEsdeSubtitle => 'Configurar desde la carpeta ROMs';
+
+  @override
+  String get settingsDiagnosticsSection => 'Diagnóstico';
+
+  @override
+  String get settingsDiagnosticsCopyTitle => 'Copiar registro de errores';
+
+  @override
+  String get settingsDiagnosticsCopySubtitle =>
+      'Para enviarlo si algo sale mal';
+
+  @override
+  String get settingsDiagnosticsCopied => 'Registro copiado.';
+
+  @override
+  String get settingsDiagnosticsEmpty => 'Aún no hay errores registrados.';
 }

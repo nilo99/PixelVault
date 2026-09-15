@@ -9,34 +9,37 @@ part of 'download_progress_tracker.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
-/// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
-/// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+/// notifier the Downloads screen watches directly. Keyed by
+/// [DownloadItem.id], the download attempt's row id.
 ///
 /// This is the in-memory view; `DownloadManager` mirrors every change it
-/// makes here into the `downloads` table, and seeds it back through
-/// [replaceAll] on startup so the queue and history survive a restart.
+/// makes here into the `downloads` table, and folds that table back in
+/// through [mergeRestored] on startup so the queue and history survive a
+/// restart.
 
 @ProviderFor(DownloadProgressTrackerNotifier)
 final downloadProgressTrackerProvider =
     DownloadProgressTrackerNotifierProvider._();
 
 /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
-/// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
-/// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+/// notifier the Downloads screen watches directly. Keyed by
+/// [DownloadItem.id], the download attempt's row id.
 ///
 /// This is the in-memory view; `DownloadManager` mirrors every change it
-/// makes here into the `downloads` table, and seeds it back through
-/// [replaceAll] on startup so the queue and history survive a restart.
+/// makes here into the `downloads` table, and folds that table back in
+/// through [mergeRestored] on startup so the queue and history survive a
+/// restart.
 final class DownloadProgressTrackerNotifierProvider
     extends
         $NotifierProvider<DownloadProgressTrackerNotifier, List<DownloadItem>> {
   /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
-  /// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
-  /// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+  /// notifier the Downloads screen watches directly. Keyed by
+  /// [DownloadItem.id], the download attempt's row id.
   ///
   /// This is the in-memory view; `DownloadManager` mirrors every change it
-  /// makes here into the `downloads` table, and seeds it back through
-  /// [replaceAll] on startup so the queue and history survive a restart.
+  /// makes here into the `downloads` table, and folds that table back in
+  /// through [mergeRestored] on startup so the queue and history survive a
+  /// restart.
   DownloadProgressTrackerNotifierProvider._()
     : super(
         from: null,
@@ -65,15 +68,16 @@ final class DownloadProgressTrackerNotifierProvider
 }
 
 String _$downloadProgressTrackerNotifierHash() =>
-    r'0d4049af72730d04c5546a4dd1b96ee28a1053ba';
+    r'ff44724e755e4d3f60ce0f6bd9353934cd4bf33b';
 
 /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
-/// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
-/// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+/// notifier the Downloads screen watches directly. Keyed by
+/// [DownloadItem.id], the download attempt's row id.
 ///
 /// This is the in-memory view; `DownloadManager` mirrors every change it
-/// makes here into the `downloads` table, and seeds it back through
-/// [replaceAll] on startup so the queue and history survive a restart.
+/// makes here into the `downloads` table, and folds that table back in
+/// through [mergeRestored] on startup so the queue and history survive a
+/// restart.
 
 abstract class _$DownloadProgressTrackerNotifier
     extends $Notifier<List<DownloadItem>> {

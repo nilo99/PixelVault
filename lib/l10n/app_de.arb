@@ -227,5 +227,76 @@
   "errorLinkExpired": "dieser Link ist nicht mehr gültig",
   "errorServerResponse": "ungültige Serverantwort",
   "errorSourceUnreachable": "Server nicht erreichbar",
-  "errorUnexpected": "ein unerwarteter Fehler ist aufgetreten"
+  "errorUnexpected": "ein unerwarteter Fehler ist aufgetreten",
+  "commonDelete": "Löschen",
+  "downloadsStatusCancelled": "Abgebrochen",
+  "downloadsDeleteTooltip": "Aus dem Verlauf löschen",
+  "downloadsSelectTooltip": "Auswählen",
+  "downloadsExitSelectionTooltip": "Auswahl beenden",
+  "downloadsSelectedCount": "{count, plural, =1{1 ausgewählt} other{{count} ausgewählt}}",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsDeleteSelected": "Auswahl löschen",
+  "downloadsDeleteSelectedConfirmTitle": "{count, plural, =1{1 Verlaufseintrag löschen?} other{{count} Verlaufseinträge löschen?}}",
+  "@downloadsDeleteSelectedConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsClearHistoryConfirmTitle": "Gesamten Verlauf löschen?",
+  "downloadsHistoryDeleteConfirmBody": "Bereits heruntergeladene Spiele bleiben im Ordner. Nur die Verlaufseinträge werden gelöscht.",
+  "libraryDownloadResumedSnackbar": "{name} wird fortgesetzt",
+  "@libraryDownloadResumedSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryDownloadAlreadyActiveSnackbar": "{name} wird bereits heruntergeladen",
+  "@libraryDownloadAlreadyActiveSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryInstalledBadge": "Bereits im Ordner",
+  "libraryVariantInstalledBadge": "Im Ordner",
+  "esdeSetupTitle": "Nutzt du ES-DE?",
+  "esdeSetupBody": "Wenn dieses Gerät bereits den ES-DE-ROMs-Ordner hat, wird jede Konsole auf den richtigen Unterordner gesetzt (psx, ps2, n3ds…), damit Spiele genau dort landen, wo ES-DE sie sucht.",
+  "esdeSetupPickButton": "ROMs-Ordner wählen",
+  "esdeSetupSkipButton": "Jetzt nicht",
+  "esdeSetupDone": "{count, plural, =1{1 Konsole eingerichtet.} other{{count} Konsolen eingerichtet.}}",
+  "@esdeSetupDone": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupCreatedFolders": "{count, plural, =1{1 fehlender Ordner erstellt.} other{{count} fehlende Ordner erstellt.}}",
+  "@esdeSetupCreatedFolders": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupNotEsde": "Das sieht nicht nach dem ES-DE-ROMs-Ordner aus. Wähle den Ordner mit psx, ps2, snes…",
+  "esdeSetupFailed": "Ordner konnten nicht eingerichtet werden.",
+  "settingsEsdeTitle": "ES-DE-Ordner",
+  "settingsEsdeSubtitle": "Aus dem ROMs-Ordner einrichten",
+  "settingsDiagnosticsSection": "Diagnose",
+  "settingsDiagnosticsCopyTitle": "Fehlerprotokoll kopieren",
+  "settingsDiagnosticsCopySubtitle": "Zum Mitschicken, falls etwas schiefgeht",
+  "settingsDiagnosticsCopied": "Protokoll kopiert.",
+  "settingsDiagnosticsEmpty": "Noch keine Fehler aufgezeichnet."
 }

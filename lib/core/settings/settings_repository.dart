@@ -18,6 +18,7 @@ class SettingsState {
     this.concurrentDownloads = 3,
     this.consoleDownloadDirectories = const {},
     this.onboardingCompleted = false,
+    this.esdePromptAnswered = false,
     this.localeCode,
   });
 
@@ -28,6 +29,11 @@ class SettingsState {
   final int concurrentDownloads;
   final Map<String, String> consoleDownloadDirectories;
   final bool onboardingCompleted;
+
+  /// Whether the first-run "do you use ES-DE?" question has been answered,
+  /// either way. Installs that finished onboarding before the question
+  /// existed are asked once after updating.
+  final bool esdePromptAnswered;
 
   /// `null` means "never chosen" — gates the first-run language picker (see
   /// `app_router.dart`'s `redirect`), distinct from defaulting to `'pt'`
@@ -42,6 +48,7 @@ class SettingsState {
     int? concurrentDownloads,
     Map<String, String>? consoleDownloadDirectories,
     bool? onboardingCompleted,
+    bool? esdePromptAnswered,
     String? localeCode,
   }) {
     return SettingsState(
@@ -52,6 +59,7 @@ class SettingsState {
       concurrentDownloads: concurrentDownloads ?? this.concurrentDownloads,
       consoleDownloadDirectories: consoleDownloadDirectories ?? this.consoleDownloadDirectories,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      esdePromptAnswered: esdePromptAnswered ?? this.esdePromptAnswered,
       localeCode: localeCode ?? this.localeCode,
     );
   }
@@ -64,6 +72,7 @@ const _kAutoUnzip = 'auto_unzip';
 const _kConcurrentDownloads = 'concurrent_downloads';
 const _kConsoleDownloadDirectories = 'console_download_directories';
 const _kOnboardingCompleted = 'onboarding_completed';
+const _kEsdePromptAnswered = 'esde_prompt_answered';
 const _kLocaleCode = 'locale_code';
 
 @Riverpod(keepAlive: true)
@@ -82,6 +91,7 @@ class SettingsNotifier extends _$SettingsNotifier {
       concurrentDownloads: _prefs.getInt(_kConcurrentDownloads) ?? 3,
       consoleDownloadDirectories: _decodeConsoleDownloadDirectories(rawMap),
       onboardingCompleted: _prefs.getBool(_kOnboardingCompleted) ?? false,
+      esdePromptAnswered: _prefs.getBool(_kEsdePromptAnswered) ?? false,
       localeCode: _prefs.getString(_kLocaleCode),
     );
   }
@@ -127,9 +137,15 @@ class SettingsNotifier extends _$SettingsNotifier {
     state = AsyncData((state.value ?? const SettingsState()).copyWith(concurrentDownloads: count));
   }
 
-  Future<void> setConsoleDownloadDirectory(String consoleId, String uri) async {
-    final current = Map<String, String>.from((state.value ?? const SettingsState()).consoleDownloadDirectories);
-    current[consoleId] = uri;
+  Future<void> setConsoleDownloadDirectory(String consoleId, String uri) =>
+      setConsoleDownloadDirectories({consoleId: uri});
+
+  /// Sets several consoles' folders in one write, leaving every other
+  /// console's folder as it was. ES-DE setup assigns a dozen at once; one
+  /// write means a half-applied layout is never what gets saved.
+  Future<void> setConsoleDownloadDirectories(Map<String, String> directories) async {
+    final current = Map<String, String>.from((state.value ?? const SettingsState()).consoleDownloadDirectories)
+      ..addAll(directories);
     await _prefs.setString(_kConsoleDownloadDirectories, jsonEncode(current));
     state = AsyncData((state.value ?? const SettingsState()).copyWith(consoleDownloadDirectories: current));
   }
@@ -137,6 +153,11 @@ class SettingsNotifier extends _$SettingsNotifier {
   Future<void> setOnboardingCompleted(bool completed) async {
     await _prefs.setBool(_kOnboardingCompleted, completed);
     state = AsyncData((state.value ?? const SettingsState()).copyWith(onboardingCompleted: completed));
+  }
+
+  Future<void> setEsdePromptAnswered(bool answered) async {
+    await _prefs.setBool(_kEsdePromptAnswered, answered);
+    state = AsyncData((state.value ?? const SettingsState()).copyWith(esdePromptAnswered: answered));
   }
 
   Future<void> setLocale(String code) async {

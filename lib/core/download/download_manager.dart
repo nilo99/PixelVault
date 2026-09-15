@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,7 @@ import 'package:saf_stream/saf_stream.dart';
 
 import '../db/daos/catalog_repository.dart';
 import '../db/daos/download_repository.dart';
+import '../diagnostics/diagnostics_log.dart';
 import '../models/downloadable_file.dart';
 import '../scraping/file_naming.dart';
 import '../scraping/scraping_constants.dart';
@@ -25,14 +27,12 @@ import 'download_target.dart';
 import 'foreground_task_handler.dart';
 
 /// Archive extensions Milou's `ArchiveUtils.isExtractable` recognizes.
+///
+/// The list itself lives in [FileNaming.isArchiveExtension], which the
+/// Library also uses to label a file by what it unpacks to — one list, so
+/// the label and the extraction can never disagree.
 abstract final class ArchiveExtensions {
-  static const _supported = {'.zip', '.7z', '.rar', '.tar', '.gz', '.tgz', '.bz2', '.xz', '.cab'};
-
-  static bool isExtractable(String extension) {
-    if (extension.isEmpty) return false;
-    final ext = extension.startsWith('.') ? extension.toLowerCase() : '.${extension.toLowerCase()}';
-    return _supported.contains(ext);
-  }
+  static bool isExtractable(String extension) => FileNaming.isArchiveExtension(extension);
 }
 
 /// Text shown on the persistent download notification. Injected (rather than
@@ -44,6 +44,19 @@ class DownloadNotificationStrings {
   final String body;
 
   static const fallback = DownloadNotificationStrings(title: 'PixelVault', body: '…');
+}
+
+/// What [DownloadManager.startDownload] did with a request.
+enum StartDownloadResult {
+  /// A new attempt was created and queued.
+  started,
+
+  /// An interrupted attempt at the same file was picked back up instead of
+  /// starting a second copy of it alongside.
+  resumed,
+
+  /// That file is already downloading; nothing new was started.
+  alreadyActive,
 }
 
 /// Minimal counting semaphore backing the concurrent-downloads limit —
@@ -83,14 +96,16 @@ class _Semaphore {
 /// that still have to be unpacked are staged locally first. See
 /// [DownloadTarget] for why that distinction matters on large files.
 ///
-/// Every internal map is keyed by [DownloadableFileWithTags.id] — the DB
-/// row's unique id — not by `fileName`, which isn't guaranteed unique across
-/// sources (region variants routinely share a file name).
+/// Every download *attempt* is its own row in the `downloads` table, and that
+/// row id is the identity used here, in the tracker and in the native torrent
+/// plugin. It used to be the catalog file id, which meant a cancelled attempt
+/// and a fresh attempt at the same file shared one cancel token, one status
+/// entry and one history row: the old run's cleanup could flip the new run's
+/// status, and starting the file again silently overwrote the history of the
+/// previous download.
 ///
-/// State is mirrored into the `downloads` table through [downloads] as it
-/// changes, so an app restart (or an OS kill, which is routine while a
-/// multi-GB ROM downloads) resumes the queue and keeps the history instead
-/// of losing both.
+/// State is mirrored into the `downloads` table as it changes, so an app
+/// restart resumes the queue and keeps the history instead of losing both.
 class DownloadManager {
   DownloadManager({
     required this.tracker,
@@ -115,50 +130,69 @@ class DownloadManager {
   final Dio _dio;
   final SafStream _safStream;
   final Directory? _httpDownloadsDir;
-  final _entities = <int, DownloadableFileWithTags>{};
+
+  /// Keyed by attempt id.
+  final _files = <int, DownloadableFileWithTags>{};
   final _cancelTokens = <int, CancelToken>{};
   final _torrentDone = <int, Completer<void>>{};
-  final _activeRuns = <int, Future<void>>{};
+  final _running = <int>{};
+  final _lastPersistedProgress = <int, DateTime>{};
+
+  /// Serialises attempts at the same source. Two attempts at one file write
+  /// the same destination name, so a new attempt waits until the previous
+  /// one — including a cancel's cleanup, which deletes its partial output by
+  /// name — has completely finished.
+  final _runsBySource = <String, Future<void>>{};
+
   _Semaphore _semaphore = _Semaphore(3);
   StreamSubscription<TorrentProgressEvent>? _torrentSub;
+  final _completions = StreamController<DownloadItem>.broadcast();
+  bool _restoreStarted = false;
 
   /// Throttles progress writes to the DB — a download emits a progress tick
   /// every 500ms, and persisting each one would mean thousands of writes per
   /// file for no benefit, since only the last value matters on restore.
-  final _lastPersistedProgress = <int, DateTime>{};
   static const _progressPersistInterval = Duration(seconds: 3);
 
   DownloadNotificationStrings notificationStrings = DownloadNotificationStrings.fallback;
 
+  /// Every attempt that completes, so anything caching what a destination
+  /// folder contains knows to look again.
+  Stream<DownloadItem> get completions => _completions.stream;
+
   /// Re-attaches the queue and history left behind by a previous process.
   ///
   /// Rows that were mid-flight when the process died come back as `stopped`
-  /// (their worker is gone), which is exactly the state the Downloads screen
-  /// already renders with a retry button — and because the partial staging
-  /// file is kept and its path recorded, retrying resumes rather than
-  /// restarting from zero.
+  /// (their worker is gone), which the Downloads screen renders as a
+  /// resumable queue entry.
   Future<void> restore() async {
-    final persisted = await downloads.getAll();
-    if (persisted.isEmpty) return;
-    await downloads.reconcileInterrupted();
+    if (_restoreStarted) return;
+    _restoreStarted = true;
+    try {
+      final persisted = await downloads.getAll();
+      if (persisted.isEmpty) return;
+      await downloads.reconcileInterrupted();
 
-    final restored = <DownloadItem>[];
-    for (final item in persisted) {
-      final normalized = item.isActive ? item.copyWith(status: DownloadStatus.stopped) : item;
-      restored.add(normalized);
-      if (normalized.recordId == null) continue;
-      final row = await downloads.row(normalized.recordId!);
-      if (row != null) {
-        _entities[normalized.id] = DownloadRepository.toCatalogFile(row);
+      final restored = <DownloadItem>[];
+      for (final item in persisted) {
+        final normalized = item.isActive ? item.copyWith(status: DownloadStatus.stopped) : item;
+        restored.add(normalized);
+        final row = await downloads.row(normalized.id);
+        if (row != null) _files[normalized.id] = DownloadRepository.toCatalogFile(row);
       }
+      tracker.mergeRestored(restored);
+    } catch (e, stack) {
+      // This used to escape as an unhandled async error and leave the queue
+      // and history silently empty. Whatever did load stays.
+      debugPrint('DownloadManager.restore failed: $e\n$stack');
+      Diagnostics.record('download', 'restore failed: $e', stack);
     }
-    tracker.replaceAll(restored);
   }
 
   void _ensureTorrentListener() {
     // `onError` matters: without it a malformed native event became an
     // unhandled async error that took down the zone instead of skipping the
-    // event, which is one of the ways the app "just closed with no message".
+    // event.
     _torrentSub ??= torrentPlugin.progressStream.listen(
       _handleTorrentEvent,
       onError: (Object _) {},
@@ -169,13 +203,17 @@ class DownloadManager {
   void _handleTorrentEvent(TorrentProgressEvent event) {
     final id = int.tryParse(event.downloadId);
     if (id == null) return;
+    final item = tracker.get(id);
+    // A late event for an attempt that was cancelled, already finished, or
+    // belongs to an earlier session must not bring it back to life.
+    if (item == null || item.isTerminal) return;
+
     if (event.status == TorrentDownloadStatus.downloading) {
       tracker.updateDownloadProgress(id, event.progress, event.speedMBs, event.downloadedBytes);
       tracker.updateDownloadStatus(id, DownloadStatus.downloading);
       _persistProgress(id);
     } else {
-      final completed = event.status == TorrentDownloadStatus.completed;
-      if (completed) {
+      if (event.status == TorrentDownloadStatus.completed) {
         tracker.updateDownloadStatus(id, DownloadStatus.completed);
       } else {
         _fail(id, DownloadFailureReason.torrentUnavailable);
@@ -199,8 +237,8 @@ class DownloadManager {
   /// bookkeeping write must never take down the download itself.
   void _persist(int id) {
     final item = tracker.get(id);
-    if (item?.recordId == null) return;
-    unawaited(downloads.update(item!).catchError((Object _) {}));
+    if (item == null) return;
+    unawaited(downloads.update(item).catchError((Object _) {}));
   }
 
   void _persistProgress(int id) {
@@ -211,55 +249,42 @@ class DownloadManager {
     _persist(id);
   }
 
-  void _fail(int id, DownloadFailureReason reason) {
+  /// Marks [id] failed for [reason]. [error], when there is one, only goes to
+  /// the on-device diagnostics log; the user is shown [reason].
+  void _fail(int id, DownloadFailureReason reason, [Object? error]) {
+    // A cancellation is final: whatever the unwinding worker runs into next
+    // must not relabel it as a failure.
+    if (tracker.get(id)?.status == DownloadStatus.cancelled) return;
     tracker.updateDownloadStatus(id, DownloadStatus.failed, failureReason: reason);
+    final detail = error == null ? '' : ' (${error.runtimeType}: $error)';
+    Diagnostics.record('download', 'attempt $id failed: ${reason.name}$detail');
   }
 
-  Future<void> startDownload(DownloadableFileWithTags file) async {
-    final existing = _entities[file.id];
-    final current = tracker.get(file.id);
-
-    // A catalog rescan renumbers rows, so an id held from a previous session
-    // can legitimately belong to a *different* file now. Comparing the URL
-    // stops a genuinely new download from being silently swallowed by the
-    // stale entry that happens to share its id.
-    final isSameFile = existing != null && existing.downloadUrl == file.downloadUrl;
-    if (isSameFile && current != null && !current.isTerminal) return;
-
-    _entities[file.id] = file;
-    _ensureTorrentListener();
-
-    final DownloadItem record;
-    if (isSameFile && current?.recordId != null) {
-      // Re-downloading something already in the list reuses its row rather
-      // than appending a second one, so the history holds one entry per
-      // file instead of one per attempt.
-      if (current!.status == DownloadStatus.completed) {
-        // Its staging file is long gone; start clean rather than trying to
-        // resume from a path that no longer exists.
-        await downloads.setStagingPath(current.recordId!, '').catchError((Object _) {});
-      }
-      record = current.copyWith(
-        status: DownloadStatus.downloading,
-        progress: 0,
-        downloadSpeed: 0,
-        downloadedBytes: current.status == DownloadStatus.completed ? 0 : current.downloadedBytes,
-        destinationLabel: '',
-        destinationUri: '',
-        savedFileName: '',
-        clearFailureReason: true,
-        clearCompletedAt: true,
-      );
-      await downloads.update(record).catchError((Object _) {});
-    } else {
-      final consoleName = (await catalog.getConsoleById(file.consoleId))?.name ?? '';
-      record = await downloads.create(file, consoleName: consoleName);
+  /// Starts downloading [file].
+  ///
+  /// Starting a file that already has an unfinished attempt does not create a
+  /// second one next to it — both would write to the same destination file.
+  /// A running attempt is left alone; an interrupted one is resumed. Once an
+  /// attempt has finished, failed or been cancelled, starting the file again
+  /// is a new attempt with its own history entry.
+  Future<StartDownloadResult> startDownload(DownloadableFileWithTags file) async {
+    final existing = tracker.queuedFor(file.downloadUrl);
+    if (existing != null) {
+      if (existing.status != DownloadStatus.stopped) return StartDownloadResult.alreadyActive;
+      _files[existing.id] ??= file;
+      await retryDownload(existing.id);
+      return StartDownloadResult.resumed;
     }
 
+    _ensureTorrentListener();
+    final consoleName = (await catalog.getConsoleById(file.consoleId))?.name ?? '';
+    final record = await downloads.create(file, consoleName: consoleName);
+    _files[record.id] = file;
     tracker.upsert(record);
     await _syncForegroundService();
 
-    unawaited(_startRun(file));
+    unawaited(_startRun(record.id));
+    return StartDownloadResult.started;
   }
 
   /// Starts/stops the persistent notification + wakelock (`DownloadForegroundService`
@@ -289,80 +314,124 @@ class DownloadManager {
     }
   }
 
+  /// Retries a failed attempt or resumes an interrupted one in place, keeping
+  /// its bytes. A cancelled attempt discarded its bytes and stays in the
+  /// history as cancelled, so retrying it starts a new attempt instead.
   Future<void> retryDownload(int id) async {
-    if (!tracker.canRetryDownload(id)) return;
-    final file = _entities[id];
-    if (file == null) return;
+    final item = tracker.get(id);
+    final file = _files[id];
+    if (item == null || file == null || !tracker.canRetryDownload(id)) return;
+
+    if (item.status == DownloadStatus.cancelled) {
+      await startDownload(file);
+      return;
+    }
+
+    // Another attempt at the same file is already in the queue; running this
+    // one too would put two writers on one destination file.
+    final other = tracker.queuedFor(file.downloadUrl);
+    if (other != null && other.id != id) return;
+
     tracker.resetDownloadForRetry(id);
     _persist(id);
+    _ensureTorrentListener();
     await _syncForegroundService();
-    unawaited(_startRun(file));
+    unawaited(_startRun(id));
   }
 
+  /// Cancels a running or queued attempt. It moves to the history as
+  /// cancelled, with its partial output removed.
   Future<void> cancelDownload(int id) async {
+    final item = tracker.get(id);
+    if (item == null || item.isTerminal) return;
+    final wasRunning = _running.contains(id);
+
     _cancelTokens[id]?.cancel();
-    final file = _entities[id];
+    final file = _files[id];
     if (file != null && file.isTorrent) {
       try {
-        await torrentPlugin.cancelFileDownload(magnet: file.downloadUrl, downloadId: id.toString());
+        await torrentPlugin.cancelFileDownload(magnet: file.downloadUrl, downloadId: '$id');
       } catch (_) {
         // The native side may already have torn the download down.
       }
     }
-    tracker.updateDownloadStatus(id, DownloadStatus.stopped);
+    tracker.updateDownloadStatus(id, DownloadStatus.cancelled);
     _persist(id);
     _completeTorrentDone(id);
+    // A running attempt discards its own partial output as its worker
+    // unwinds. One that was only waiting for a slot, or interrupted by an
+    // earlier process, has no worker left to do that.
+    if (!wasRunning) await _discardPartialOutput(id);
     await _syncForegroundService();
   }
 
-  Future<void> deleteDownload(int id, {bool deleteFile = false}) async {
-    final statusBefore = tracker.get(id)?.status;
-    await cancelDownload(id);
-    final file = _entities[id];
-    if (deleteFile && file != null) {
-      await _tryDeleteWrittenFile(file);
-    } else if (file != null && statusBefore != DownloadStatus.completed) {
-      // An unfinished streaming download leaves a truncated file at the
-      // destination. Nobody else created it and it is unusable, so removing
-      // the entry removes it too — a completed download's file is the
-      // user's and is never touched here.
-      await _discardPartialDestinationFile(id, file);
+  /// Deletes history entries — finished, failed or cancelled attempts — and
+  /// nothing else.
+  ///
+  /// Ids of attempts still running or queued are ignored: the history is the
+  /// only thing the user deletes, and a download leaves the queue only by
+  /// finishing, failing or being cancelled. A completed download's file is
+  /// never touched; what a failed attempt left half-written is removed.
+  Future<void> deleteHistoryEntries(Set<int> ids) async {
+    final removable = <int>{
+      for (final id in ids)
+        if (tracker.get(id)?.isTerminal ?? false) id,
+    };
+    if (removable.isEmpty) return;
+
+    for (final id in removable) {
+      if (tracker.get(id)?.status == DownloadStatus.failed) {
+        await _discardPartialOutput(id);
+      } else {
+        await _deleteStagingFile(id);
+      }
     }
+    await downloads.deleteMany(removable).catchError((Object _) => 0);
+    for (final id in removable) {
+      _files.remove(id);
+      _lastPersistedProgress.remove(id);
+    }
+    tracker.removeMany(removable);
+  }
+
+  /// Deletes the whole history; the queue is untouched.
+  Future<void> clearHistory() async {
+    await deleteHistoryEntries(tracker.terminalItems.map((d) => d.id).toSet());
+    // Also catches rows the tracker never loaded, e.g. if restore failed.
+    await downloads.clearHistory().catchError((Object _) => 0);
+  }
+
+  Future<void> _deleteStagingFile(int id) async {
+    try {
+      final path = await downloads.stagingPathOf(id);
+      if (path.isEmpty) return;
+      final staged = File(path);
+      if (await staged.exists()) await staged.delete();
+    } catch (_) {
+      // Best-effort.
+    }
+  }
+
+  /// Removes what an unfinished attempt left behind: its staging file and —
+  /// for a download that streamed straight into the destination — the
+  /// truncated file there. Never touches a completed download's file, and
+  /// never a destination file another unfinished attempt at the same source
+  /// is writing. Best-effort throughout.
+  Future<void> _discardPartialOutput(int id) async {
     await _deleteStagingFile(id);
     final item = tracker.get(id);
-    if (item?.recordId != null) {
-      await downloads.delete(item!.recordId!).catchError((Object _) {});
-    }
-    _entities.remove(id);
-    _lastPersistedProgress.remove(id);
-    tracker.removeDownload(id);
-  }
+    final file = _files[id];
+    if (item == null || file == null) return;
+    if (item.status == DownloadStatus.completed) return;
+    if (item.destinationUri.isEmpty || item.downloadedBytes <= 0) return;
 
-  /// Drops every finished/failed row, leaving running downloads alone.
-  Future<void> clearHistory() async {
-    for (final item in tracker.terminalItems) {
-      await _deleteStagingFile(item.id);
-      _entities.remove(item.id);
-      _lastPersistedProgress.remove(item.id);
-    }
-    await downloads.clearHistory().catchError((Object _) => 0);
-    tracker.removeTerminal();
-  }
+    final other = tracker.queuedFor(file.downloadUrl);
+    if (other != null && other.id != id) return;
 
-  /// Deletes the partially-written destination file of a download that never
-  /// completed. Best-effort: the folder permission may be gone, or the user
-  /// may have moved the file themselves.
-  Future<void> _discardPartialDestinationFile(int id, DownloadableFileWithTags file) async {
     try {
-      final item = tracker.get(id);
-      if (item == null || item.destinationUri.isEmpty) return;
-      if (item.downloadedBytes <= 0) return;
       final settingsState = settings.current;
-      if (ArchiveExtensions.isExtractable(file.fileExtension) && settingsState.autoUnzip) {
-        // Archives were staged locally, so nothing partial ever reached the
-        // destination.
-        return;
-      }
+      // Archives were staged locally, so nothing partial reached the destination.
+      if (ArchiveExtensions.isExtractable(file.fileExtension) && settingsState.autoUnzip) return;
       final subPath = await _resolveSubPath(file, settingsState);
       final dirUri = subPath.isEmpty
           ? item.destinationUri
@@ -374,89 +443,57 @@ class DownloadManager {
     }
   }
 
-  Future<void> _deleteStagingFile(int id) async {
+  /// Runs attempt [id] once any earlier attempt at the same source has fully
+  /// finished. The slot is claimed before waiting, so a third attempt queues
+  /// behind this one rather than also waiting only on the first.
+  Future<void> _startRun(int id) async {
+    final file = _files[id];
+    if (file == null) return;
+    final key = file.downloadUrl;
+
+    final previous = _runsBySource[key];
+    final done = Completer<void>();
+    _runsBySource[key] = done.future;
     try {
-      final item = tracker.get(id);
-      if (item?.recordId == null) return;
-      final path = await downloads.stagingPathOf(item!.recordId!);
-      if (path.isEmpty) return;
-      final staged = File(path);
-      if (await staged.exists()) await staged.delete();
-    } catch (_) {
-      // Best-effort.
-    }
-  }
-
-  /// Best-effort removal of the file [DownloadManager] previously wrote to
-  /// the SAF destination for a *plain* (non-extracted) download. Extracted
-  /// archives aren't covered — the app doesn't persist the list of names an
-  /// extraction produced, so there's no reliable single file to find and
-  /// delete for those. Swallows errors (permission revoked, already moved by
-  /// the user, etc.) since this only runs as a courtesy on top of removing
-  /// the in-app list entry, which always succeeds regardless.
-  Future<void> _tryDeleteWrittenFile(DownloadableFileWithTags file) async {
-    try {
-      final settingsState = settings.current;
-      final shouldExtract = ArchiveExtensions.isExtractable(file.fileExtension) && settingsState.autoUnzip;
-      if (shouldExtract) return;
-
-      final destDirUri = await _resolveDestDirUri(file, settingsState);
-      if (destDirUri.isEmpty) return;
-      final subPath = await _resolveSubPath(file, settingsState);
-      final dirUri = subPath.isEmpty ? destDirUri : await safStorage.ensureDirectory(destDirUri, subPath);
-      final doc = await safStorage.findChild(dirUri, _destinationFileName(file));
-      if (doc != null) await safStorage.deleteFile(doc.uri);
-    } catch (_) {
-      // Best-effort.
-    }
-  }
-
-  /// Guards against a second `_run` for the same download starting while a
-  /// previous one — including its copy/extract phase, which `cancelDownload`
-  /// doesn't interrupt — is still finishing. Without this, a fast
-  /// cancel-then-retry could reopen (and truncate) the same local staging file
-  /// the still-finishing old run is reading from, or have the old run delete
-  /// the file the new run just started writing. The new run simply waits
-  /// for the previous one to fully finish first instead of racing it.
-  Future<void> _startRun(DownloadableFileWithTags file) async {
-    final previous = _activeRuns[file.id];
-    if (previous != null) {
-      try {
-        await previous;
-      } catch (_) {
-        // Previous run's own error handling already updated tracker status.
+      if (previous != null) {
+        try {
+          await previous;
+        } catch (_) {
+          // The previous run's own error handling already updated its status.
+        }
       }
-    }
-
-    final future = _run(file);
-    _activeRuns[file.id] = future;
-    try {
-      await future;
+      await _run(id, file);
     } finally {
-      if (identical(_activeRuns[file.id], future)) {
-        _activeRuns.remove(file.id);
-      }
+      done.complete();
+      if (identical(_runsBySource[key], done.future)) _runsBySource.remove(key);
     }
   }
 
-  Future<void> _run(DownloadableFileWithTags file) async {
+  Future<void> _run(int id, DownloadableFileWithTags file) async {
     _ensureConcurrency();
     final semaphore = _semaphore;
     await semaphore.acquire();
+    _running.add(id);
     try {
       await Future.delayed(const Duration(seconds: 1));
-      if (tracker.get(file.id)?.status == DownloadStatus.stopped) return;
+      final item = tracker.get(id);
+      // Cancelled (or otherwise settled) while it was waiting for a slot.
+      if (item == null || item.isTerminal || item.status == DownloadStatus.stopped) {
+        if (item?.status == DownloadStatus.cancelled) await _discardPartialOutput(id);
+        return;
+      }
       if (file.isTorrent) {
-        await _performTorrentDownload(file);
+        await _performTorrentDownload(id, file);
       } else {
-        await _performHttpDownload(file);
+        await _performHttpDownload(id, file);
       }
     } catch (e) {
       // A throw escaping this far would otherwise become an unhandled async
       // error — the download would look stuck at "downloading" forever.
-      _fail(file.id, _classify(e));
-      _persist(file.id);
+      _fail(id, _classify(e), e);
+      _persist(id);
     } finally {
+      _running.remove(id);
       semaphore.release();
       await _syncForegroundService();
     }
@@ -489,27 +526,27 @@ class DownloadManager {
     return DownloadFailureReason.unknown;
   }
 
-  Future<void> _performTorrentDownload(DownloadableFileWithTags file) async {
+  Future<void> _performTorrentDownload(int id, DownloadableFileWithTags file) async {
     final done = Completer<void>();
-    _torrentDone[file.id] = done;
+    _torrentDone[id] = done;
     try {
       await torrentPlugin.startFileDownload(
         magnet: file.downloadUrl,
         fileIndex: file.torrentFileIndex!,
         fileName: _destinationFileName(file),
-        downloadId: file.id.toString(),
+        downloadId: '$id',
       );
     } catch (e) {
-      _fail(file.id, DownloadFailureReason.torrentUnavailable);
-      _persist(file.id);
-      _torrentDone.remove(file.id);
+      _fail(id, DownloadFailureReason.torrentUnavailable, e);
+      _persist(id);
+      _torrentDone.remove(id);
       return;
     }
 
     await done.future;
-    _torrentDone.remove(file.id);
+    _torrentDone.remove(id);
 
-    if (tracker.get(file.id)?.status != DownloadStatus.completed) return;
+    if (tracker.get(id)?.status != DownloadStatus.completed) return;
 
     try {
       final settingsState = settings.current;
@@ -518,31 +555,35 @@ class DownloadManager {
       final subPath = await _resolveSubPath(file, settingsState);
       final shouldExtract = ArchiveExtensions.isExtractable(file.fileExtension) && settingsState.autoUnzip;
 
-      tracker.updateDownloadStatus(file.id, shouldExtract ? DownloadStatus.unzipping : DownloadStatus.copying);
-      _persist(file.id);
+      tracker.updateDownloadStatus(id, shouldExtract ? DownloadStatus.unzipping : DownloadStatus.copying);
+      _persist(id);
 
       final written = await torrentPlugin.finishFileDownload(
         magnet: file.downloadUrl,
         fileName: _destinationFileName(file),
-        downloadId: file.id.toString(),
+        downloadId: '$id',
         destDirUri: destDirUri,
         subPath: subPath,
         extract: shouldExtract,
       );
-      await _markCompleted(file, destDirUri, subPath, written);
+      await _markCompleted(id, file, destDirUri, subPath, written);
     } catch (e) {
-      _fail(file.id, e is _DestinationUnavailableException
-          ? DownloadFailureReason.destinationUnavailable
-          : (ArchiveExtensions.isExtractable(file.fileExtension) && settings.current.autoUnzip
-              ? DownloadFailureReason.extractionFailed
-              : DownloadFailureReason.destinationWriteFailed));
-      _persist(file.id);
+      _fail(
+        id,
+        e is _DestinationUnavailableException
+            ? DownloadFailureReason.destinationUnavailable
+            : (ArchiveExtensions.isExtractable(file.fileExtension) && settings.current.autoUnzip
+                ? DownloadFailureReason.extractionFailed
+                : DownloadFailureReason.destinationWriteFailed),
+        e,
+      );
+      _persist(id);
     }
   }
 
-  Future<void> _performHttpDownload(DownloadableFileWithTags file) async {
+  Future<void> _performHttpDownload(int id, DownloadableFileWithTags file) async {
     final cancelToken = CancelToken();
-    _cancelTokens[file.id] = cancelToken;
+    _cancelTokens[id] = cancelToken;
 
     final settingsState = settings.current;
     final shouldExtract = ArchiveExtensions.isExtractable(file.fileExtension) && settingsState.autoUnzip;
@@ -552,9 +593,9 @@ class DownloadManager {
     // pulling down a disc image, not after.
     final destDirUri = await _resolveDestDirUri(file, settingsState);
     if (destDirUri.isEmpty) {
-      _fail(file.id, DownloadFailureReason.destinationUnavailable);
-      _persist(file.id);
-      _cancelTokens.remove(file.id);
+      _fail(id, DownloadFailureReason.destinationUnavailable);
+      _persist(id);
+      _cancelTokens.remove(id);
       return;
     }
     final subPath = await _resolveSubPath(file, settingsState);
@@ -564,7 +605,7 @@ class DownloadManager {
     if (shouldExtract) {
       // 7-Zip-JBinding extracts from a seekable local file, so an archive
       // genuinely has to be staged first.
-      stagingFile = await _stagingFile(file);
+      stagingFile = await _stagingFile(id, file);
       target = LocalFileDownloadTarget(stagingFile);
     } else {
       // Everything else — the multi-gigabyte .chd/.iso case — goes straight
@@ -577,8 +618,8 @@ class DownloadManager {
         fileName: _destinationFileName(file),
       );
       // Recorded before a byte is written so the Downloads screen can show
-      // where the file is going, and so a later delete knows what to clean.
-      _recordDestination(file, destDirUri, subPath);
+      // where the file is going, and so a later cleanup knows what to remove.
+      _recordDestination(id, destDirUri, subPath);
     }
 
     try {
@@ -587,7 +628,7 @@ class DownloadManager {
         if (cancelToken.isCancelled) break;
         try {
           if (attempt > 0) await Future.delayed(Duration(seconds: 2 * attempt));
-          await _downloadAttempt(file, target, cancelToken);
+          await _downloadAttempt(id, file, target, cancelToken);
           lastError = null;
           break;
         } catch (e) {
@@ -597,58 +638,51 @@ class DownloadManager {
       }
       if (lastError != null) throw lastError;
       if (cancelToken.isCancelled) {
-        // Cancelling is explicit: drop the partial output rather than
-        // leaving it to be silently resumed later.
+        // `cancelDownload` has already marked it cancelled; drop the partial
+        // output rather than leaving it behind.
         await target.discard();
         return;
       }
 
       if (shouldExtract) {
-        await _extractStagedArchive(file, stagingFile!, destDirUri, subPath);
+        await _extractStagedArchive(id, file, stagingFile!, destDirUri, subPath);
       } else {
-        await _markCompleted(file, destDirUri, subPath, [_destinationFileName(file)]);
+        await _markCompleted(id, file, destDirUri, subPath, [_destinationFileName(file)]);
       }
     } catch (e) {
       final isCancel = e is DioException && CancelToken.isCancel(e);
       if (isCancel) {
         await target.discard();
-        tracker.updateDownloadStatus(file.id, DownloadStatus.stopped);
       } else {
         // The partial output is deliberately KEPT so a retry resumes from it
-        // instead of re-downloading gigabytes already on disk — losing that
-        // progress on every hiccup was the single worst part of a flaky
-        // connection. `deleteDownload` is what finally removes it.
-        _fail(file.id, _classify(e));
+        // instead of re-downloading gigabytes already on disk. Deleting the
+        // history entry is what finally removes it.
+        _fail(id, _classify(e), e);
       }
-      _persist(file.id);
+      _persist(id);
     } finally {
-      _cancelTokens.remove(file.id);
+      _cancelTokens.remove(id);
     }
   }
 
   /// Notes where this download is being written, before it finishes, so the
   /// destination is visible while it runs and a failed streaming download
   /// can have its half-written file cleaned up later.
-  void _recordDestination(DownloadableFileWithTags file, String destDirUri, String subPath) {
+  void _recordDestination(int id, String destDirUri, String subPath) {
     tracker.updateDownloadStatus(
-      file.id,
-      tracker.get(file.id)?.status ?? DownloadStatus.downloading,
+      id,
+      tracker.get(id)?.status ?? DownloadStatus.downloading,
       destinationUri: destDirUri,
       destinationLabel: _destinationLabel(destDirUri, subPath),
     );
-    _persist(file.id);
+    _persist(id);
   }
 
-  /// The staging file for [file], reusing the path recorded on a previous
-  /// (interrupted) attempt when there is one so its bytes are picked up.
-  Future<File> _stagingFile(DownloadableFileWithTags file) async {
-    final item = tracker.get(file.id);
-    final recordId = item?.recordId;
-
-    if (recordId != null) {
-      final recorded = await downloads.stagingPathOf(recordId);
-      if (recorded.isNotEmpty) return File(recorded);
-    }
+  /// The staging file for attempt [id], reusing the path recorded on an
+  /// earlier (interrupted) run of the same attempt so its bytes are picked up.
+  Future<File> _stagingFile(int id, DownloadableFileWithTags file) async {
+    final recorded = await downloads.stagingPathOf(id);
+    if (recorded.isNotEmpty) return File(recorded);
 
     // `getApplicationSupportDirectory`, not `getTemporaryDirectory`: Android
     // purges the cache directory whenever the device is short on space, so a
@@ -656,31 +690,25 @@ class DownloadManager {
     final localDir = _httpDownloadsDir ??
         Directory('${(await getApplicationSupportDirectory()).path}/http_downloads');
     await localDir.create(recursive: true);
-    final staged = File('${localDir.path}/${file.id}_${_destinationFileName(file)}');
-
-    if (recordId != null) {
-      await downloads.setStagingPath(recordId, staged.path).catchError((Object _) {});
-    }
+    final staged = File('${localDir.path}/${id}_${_destinationFileName(file)}');
+    await downloads.setStagingPath(id, staged.path).catchError((Object _) {});
     return staged;
   }
 
   /// Resumes from wherever the previous attempt left off instead of always
-  /// restarting from byte 0 — each retry used to reopen [localFile] with the
-  /// truncating default `openWrite()`, discarding whatever a prior attempt
-  /// had already downloaded even though the file was deliberately kept on
-  /// disk between retries.
+  /// restarting from byte 0.
   Future<void> _downloadAttempt(
+    int id,
     DownloadableFileWithTags file,
     DownloadTarget target,
     CancelToken cancelToken,
   ) async {
     // Streaming straight into the destination folder means a file with a
     // matching name may simply be one the user already had, so bytes there
-    // are only resumed onto once this download is known to have written
-    // some. A private staging file carries no such ambiguity — see
+    // are only resumed onto once this attempt is known to have written some.
+    // A private staging file carries no such ambiguity — see
     // `DownloadTarget.requiresPriorWriteToResume`.
-    final mayResume = !target.requiresPriorWriteToResume ||
-        (tracker.get(file.id)?.downloadedBytes ?? 0) > 0;
+    final mayResume = !target.requiresPriorWriteToResume || (tracker.get(id)?.downloadedBytes ?? 0) > 0;
     final existingBytes = mayResume ? await target.existingBytes() : 0;
 
     final response = await _dio.get<ResponseBody>(
@@ -698,7 +726,7 @@ class DownloadManager {
 
     // The server only actually resumed if it answered 206 Partial Content —
     // a 200 OK means it ignored the Range header and is sending the whole
-    // file again from byte 0, so the partial local file must be truncated.
+    // file again from byte 0, so the partial output must be truncated.
     final isResuming = existingBytes > 0 && response.statusCode == 206;
     final total = _resolveTotalBytes(response, fallback: file.fileSize, resumedFrom: isResuming ? existingBytes : null);
     final sink = await target.open(append: isResuming);
@@ -707,7 +735,7 @@ class DownloadManager {
     var lastSpeedCheck = DateTime.now();
     var lastUpdate = DateTime.now();
     var lastDownloaded = downloaded;
-    final speedLimit = (settings.current).limitSpeedMbs;
+    final speedLimit = settings.current.limitSpeedMbs;
 
     try {
       await for (final chunk in response.data!.stream) {
@@ -735,8 +763,8 @@ class DownloadManager {
         if (sinceUpdateMs >= 500) {
           final elapsed = sinceUpdateMs / 1000;
           final speedMBs = DownloadSpeedController.calculateSpeedMbs(downloaded - lastDownloaded, elapsed);
-          tracker.updateDownloadProgress(file.id, progress, speedMBs, downloaded);
-          _persistProgress(file.id);
+          tracker.updateDownloadProgress(id, progress, speedMBs, downloaded);
+          _persistProgress(id);
           lastUpdate = now;
           lastDownloaded = downloaded;
         }
@@ -747,24 +775,17 @@ class DownloadManager {
 
     // Record the true byte count now the attempt is over, instead of leaving
     // it at whatever the last 500ms tick happened to catch. A transfer that
-    // dies inside the first half-second would otherwise be recorded as
-    // having written nothing, and the next attempt would overwrite the bytes
-    // that are actually on disk rather than resuming past them.
-    tracker.updateDownloadProgress(
-      file.id,
-      total > 0 ? (downloaded / total).clamp(0.0, 1.0) : 0.0,
-      0,
-      downloaded,
-    );
-    _persist(file.id);
+    // dies inside the first half-second would otherwise be recorded as having
+    // written nothing, and the next attempt would overwrite the bytes that are
+    // actually on disk rather than resuming past them.
+    tracker.updateDownloadProgress(id, total > 0 ? (downloaded / total).clamp(0.0, 1.0) : 0.0, 0, downloaded);
+    _persist(id);
 
     if (cancelToken.isCancelled) return;
 
     // A dropped connection ends the response stream *without* throwing, so
     // without this check a half-transferred file walked straight through to
-    // the copy step and was reported as a successful download — the "it says
-    // it finished but the file is broken/missing" report, and the reason
-    // large .chd/.iso downloads appeared to succeed and then wouldn't load.
+    // completion and was reported as a successful download.
     if (total > 0 && downloaded < total) {
       throw IncompleteDownloadException(received: downloaded, expected: total);
     }
@@ -791,39 +812,48 @@ class DownloadManager {
   /// copy. Only archives take this path — everything else has already been
   /// written straight to the destination by the time the transfer ends.
   Future<void> _extractStagedArchive(
+    int id,
     DownloadableFileWithTags file,
     File stagingFile,
     String destDirUri,
     String subPath,
   ) async {
-    tracker.updateDownloadStatus(file.id, DownloadStatus.unzipping);
-    _persist(file.id);
+    tracker.updateDownloadStatus(id, DownloadStatus.unzipping);
+    _persist(id);
     final written = await torrentPlugin.extractArchive(
       archivePath: stagingFile.path,
       destDirUri: destDirUri,
       subPath: subPath,
     );
     if (await stagingFile.exists()) await stagingFile.delete();
-    await _markCompleted(file, destDirUri, subPath, written);
+    await _markCompleted(id, file, destDirUri, subPath, written);
   }
 
   /// Records where the file landed alongside the completed status, so the
   /// Downloads screen can tell the user the folder instead of just "done".
   Future<void> _markCompleted(
+    int id,
     DownloadableFileWithTags file,
     String destDirUri,
     String subPath,
     List<String> written,
   ) async {
     tracker.updateDownloadStatus(
-      file.id,
+      id,
       DownloadStatus.completed,
       destinationLabel: _destinationLabel(destDirUri, subPath),
       destinationUri: destDirUri,
       savedFileName: written.isEmpty ? _destinationFileName(file) : written.first,
       completedAt: DateTime.now(),
     );
-    _persist(file.id);
+    _persist(id);
+    final completed = tracker.get(id);
+    // A cancel that landed while the copy or extraction was finishing keeps
+    // the attempt cancelled (the tracker refuses to change that status), and
+    // it is not announced as a completion.
+    if (completed != null && completed.status == DownloadStatus.completed && !_completions.isClosed) {
+      _completions.add(completed);
+    }
   }
 
   /// `volume:path` form persisted on the download row; the UI turns the
@@ -864,6 +894,7 @@ class DownloadManager {
 
   void dispose() {
     _torrentSub?.cancel();
+    _completions.close();
   }
 }
 

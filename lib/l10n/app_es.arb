@@ -227,5 +227,76 @@
   "errorLinkExpired": "este enlace ya no es válido",
   "errorServerResponse": "respuesta no válida del servidor",
   "errorSourceUnreachable": "no se pudo contactar con el servidor",
-  "errorUnexpected": "se produjo un error inesperado"
+  "errorUnexpected": "se produjo un error inesperado",
+  "commonDelete": "Eliminar",
+  "downloadsStatusCancelled": "Cancelado",
+  "downloadsDeleteTooltip": "Eliminar del historial",
+  "downloadsSelectTooltip": "Seleccionar",
+  "downloadsExitSelectionTooltip": "Terminar selección",
+  "downloadsSelectedCount": "{count, plural, =1{1 seleccionado} other{{count} seleccionados}}",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsDeleteSelected": "Eliminar seleccionados",
+  "downloadsDeleteSelectedConfirmTitle": "{count, plural, =1{¿Eliminar 1 entrada del historial?} other{¿Eliminar {count} entradas del historial?}}",
+  "@downloadsDeleteSelectedConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsClearHistoryConfirmTitle": "¿Borrar todo el historial?",
+  "downloadsHistoryDeleteConfirmBody": "Los juegos que ya descargaste se quedan en su carpeta. Solo se eliminan las entradas del historial.",
+  "libraryDownloadResumedSnackbar": "Reanudando {name}",
+  "@libraryDownloadResumedSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryDownloadAlreadyActiveSnackbar": "{name} ya se está descargando",
+  "@libraryDownloadAlreadyActiveSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryInstalledBadge": "Ya está en tu carpeta",
+  "libraryVariantInstalledBadge": "En la carpeta",
+  "esdeSetupTitle": "¿Usas ES-DE?",
+  "esdeSetupBody": "Si este dispositivo ya tiene la carpeta ROMs de ES-DE, apuntamos cada consola a la subcarpeta correcta (psx, ps2, n3ds…) y los juegos van directos a donde ES-DE los busca.",
+  "esdeSetupPickButton": "Elegir la carpeta ROMs",
+  "esdeSetupSkipButton": "Ahora no",
+  "esdeSetupDone": "{count, plural, =1{1 consola configurada.} other{{count} consolas configuradas.}}",
+  "@esdeSetupDone": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupCreatedFolders": "{count, plural, =1{Creada 1 carpeta que faltaba.} other{Creadas {count} carpetas que faltaban.}}",
+  "@esdeSetupCreatedFolders": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupNotEsde": "Esa carpeta no parece la carpeta ROMs de ES-DE. Elige la que contiene psx, ps2, snes…",
+  "esdeSetupFailed": "No se pudieron configurar las carpetas.",
+  "settingsEsdeTitle": "Carpetas de ES-DE",
+  "settingsEsdeSubtitle": "Configurar desde la carpeta ROMs",
+  "settingsDiagnosticsSection": "Diagnóstico",
+  "settingsDiagnosticsCopyTitle": "Copiar registro de errores",
+  "settingsDiagnosticsCopySubtitle": "Para enviarlo si algo sale mal",
+  "settingsDiagnosticsCopied": "Registro copiado.",
+  "settingsDiagnosticsEmpty": "Aún no hay errores registrados."
 }

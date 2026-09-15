@@ -9,16 +9,22 @@ import '../database.dart';
 /// Persistence for the download queue and history (see the `Downloads` table
 /// doc for why it is deliberately decoupled from the catalog).
 ///
-/// Everything the Downloads screen shows now survives a process death: the
-/// active queue with its progress, the completed history, and where each
-/// file actually landed.
+/// One row per download *attempt*. The history is permanent: rows leave this
+/// table only through [deleteMany] and [clearHistory], which the Downloads
+/// screen calls when the user asks for it, and both refuse to touch an
+/// attempt that is still running or queued.
 class DownloadRepository {
   DownloadRepository(this.db);
 
   final AppDatabase db;
 
-  /// Live view of every download, newest first — what the Downloads screen
-  /// watches. Includes finished and failed rows, which is the history.
+  static final _terminalNames = [
+    DownloadStatus.completed.name,
+    DownloadStatus.failed.name,
+    DownloadStatus.cancelled.name,
+  ];
+
+  /// Live view of every attempt, newest first.
   Stream<List<DownloadItem>> watchAll() {
     return (db.select(db.downloads)..orderBy([(d) => OrderingTerm.desc(d.createdAt)]))
         .watch()
@@ -32,11 +38,10 @@ class DownloadRepository {
     return rows.map(_toItem).toList();
   }
 
-  /// Creates the row for a newly started download and returns it with its
-  /// assigned [DownloadItem.recordId].
+  /// Creates the row for a new attempt and returns it with its assigned id.
   Future<DownloadItem> create(DownloadableFileWithTags file, {String consoleName = ''}) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final id = await db.into(db.downloads).insertReturning(DownloadsCompanion.insert(
+    final row = await db.into(db.downloads).insertReturning(DownloadsCompanion.insert(
           catalogFileId: file.id,
           name: file.name,
           fileName: file.fileName,
@@ -51,15 +56,13 @@ class DownloadRepository {
           createdAt: now,
           updatedAt: now,
         ));
-    return _toItem(id);
+    return _toItem(row);
   }
 
   /// Writes the mutable parts of [item] back. Called on every status change
   /// and on throttled progress ticks, so it only touches columns that move.
   Future<void> update(DownloadItem item) async {
-    final recordId = item.recordId;
-    if (recordId == null) return;
-    await (db.update(db.downloads)..where((d) => d.id.equals(recordId))).write(
+    await (db.update(db.downloads)..where((d) => d.id.equals(item.id))).write(
       DownloadsCompanion(
         status: Value(item.status.name),
         progress: Value(item.progress),
@@ -74,29 +77,28 @@ class DownloadRepository {
     );
   }
 
-  Future<void> setStagingPath(int recordId, String path) {
-    return (db.update(db.downloads)..where((d) => d.id.equals(recordId)))
+  Future<void> setStagingPath(int id, String path) {
+    return (db.update(db.downloads)..where((d) => d.id.equals(id)))
         .write(DownloadsCompanion(stagingPath: Value(path)));
   }
 
-  Future<String> stagingPathOf(int recordId) async {
-    final row = await (db.select(db.downloads)..where((d) => d.id.equals(recordId)))
-        .getSingleOrNull();
+  Future<String> stagingPathOf(int id) async {
+    final row = await (db.select(db.downloads)..where((d) => d.id.equals(id))).getSingleOrNull();
     return row?.stagingPath ?? '';
   }
 
-  Future<void> delete(int recordId) {
-    return (db.delete(db.downloads)..where((d) => d.id.equals(recordId))).go();
+  /// Deletes the given history entries. An id that belongs to an attempt
+  /// still running or queued is ignored, even if a caller passes it.
+  Future<int> deleteMany(Set<int> ids) {
+    if (ids.isEmpty) return Future.value(0);
+    return (db.delete(db.downloads)
+          ..where((d) => d.id.isIn(ids) & d.status.isIn(_terminalNames)))
+        .go();
   }
 
-  /// Clears finished/failed rows, leaving anything still running alone.
+  /// Deletes every finished, failed and cancelled row; the queue is untouched.
   Future<int> clearHistory() {
-    return (db.delete(db.downloads)
-          ..where((d) => d.status.isIn([
-                DownloadStatus.completed.name,
-                DownloadStatus.failed.name,
-              ])))
-        .go();
+    return (db.delete(db.downloads)..where((d) => d.status.isIn(_terminalNames))).go();
   }
 
   /// Marks rows that were mid-flight when the process died as `stopped`, so
@@ -120,9 +122,9 @@ class DownloadRepository {
     return rows.map((r) => _toItem(r).copyWith(status: DownloadStatus.stopped)).toList();
   }
 
-  /// Rebuilds the catalog-shaped record a retry needs, from the snapshot
-  /// stored on the download row itself — so retrying a download still works
-  /// after a rescan has renumbered (or removed) the original catalog entry.
+  /// Rebuilds the catalog-shaped record a retry needs from the snapshot on
+  /// the row itself, so retrying still works after a rescan has renumbered
+  /// (or removed) the original catalog entry.
   static DownloadableFileWithTags toCatalogFile(Download row) {
     return DownloadableFileWithTags(
       id: row.catalogFileId,
@@ -137,14 +139,16 @@ class DownloadRepository {
     );
   }
 
-  Future<Download?> row(int recordId) {
-    return (db.select(db.downloads)..where((d) => d.id.equals(recordId))).getSingleOrNull();
+  Future<Download?> row(int id) {
+    return (db.select(db.downloads)..where((d) => d.id.equals(id))).getSingleOrNull();
   }
 
   static DownloadItem _toItem(Download row) {
     return DownloadItem(
-      id: row.catalogFileId,
-      recordId: row.id,
+      id: row.id,
+      catalogFileId: row.catalogFileId,
+      consoleId: row.consoleId,
+      downloadUrl: row.downloadUrl,
       name: row.name,
       fileName: row.fileName,
       fileSize: row.fileSize,
@@ -158,13 +162,9 @@ class DownloadRepository {
       destinationUri: row.destinationUri,
       destinationLabel: row.destinationLabel,
       savedFileName: row.savedFileName,
-      failureReason: row.failureReason == null
-          ? null
-          : DownloadFailureReason.fromCode(row.failureReason),
+      failureReason: row.failureReason == null ? null : DownloadFailureReason.fromCode(row.failureReason),
       createdAt: DateTime.fromMillisecondsSinceEpoch(row.createdAt),
-      completedAt: row.completedAt == null
-          ? null
-          : DateTime.fromMillisecondsSinceEpoch(row.completedAt!),
+      completedAt: row.completedAt == null ? null : DateTime.fromMillisecondsSinceEpoch(row.completedAt!),
     );
   }
 }

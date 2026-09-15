@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/db/database.dart';
 import '../../../core/models/content_type.dart';
 import '../../../core/theme/gengar_components.dart';
+import '../../../core/theme/gengar_metrics.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// Add-source dialog — a single URL/magnet can be attached to more than one
@@ -32,7 +33,15 @@ class AddUrlDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final metrics = GengarMetrics.of(context);
     return AlertDialog(
+      // Material's default 40pt side insets plus 24pt content padding leave a
+      // 240pt display roughly 110pt of usable width. On a tiny screen the
+      // dialog takes nearly the full width instead.
+      insetPadding: metrics.isTiny
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 12)
+          : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+      contentPadding: metrics.isTiny ? const EdgeInsets.fromLTRB(16, 12, 16, 8) : null,
       title: Text(l10n.addUrlDialogTitle),
       content: SizedBox(
         width: 400,
@@ -56,9 +65,17 @@ class AddUrlDialog extends StatelessWidget {
               const SizedBox(height: 12),
               DropdownButtonFormField<ContentType>(
                 initialValue: contentType,
+                // Without `isExpanded` the field sizes itself to its widest
+                // item and pushes past the dialog edge whenever that item is
+                // wider than the dialog — which was already true on a
+                // standard 390pt phone, not only on small screens.
+                isExpanded: true,
                 decoration: InputDecoration(labelText: l10n.addUrlDialogContentTypeLabel),
                 items: ContentType.values
-                    .map((type) => DropdownMenuItem(value: type, child: Text(type.toJson())))
+                    .map((type) => DropdownMenuItem(
+                          value: type,
+                          child: Text(type.toJson(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ))
                     .toList(),
                 onChanged: (value) {
                   if (value != null) onContentTypeChanged(value);
@@ -73,7 +90,9 @@ class AddUrlDialog extends StatelessWidget {
                 ),
               ),
               SizedBox(
-                height: 220,
+                // A fixed 220pt list is most of a secondary display's height;
+                // it scrolls on its own, so it can afford to be shorter there.
+                height: metrics.isTiny ? 140 : 220,
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: allConsoles.length,

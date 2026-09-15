@@ -1,3 +1,4 @@
+import '../scraping/console_formats.dart';
 import '../scraping/file_naming.dart';
 
 /// A single scraped rom/file, with its resolved display name and tags.
@@ -45,12 +46,28 @@ class DownloadableFileWithTags {
 
   /// True when the download arrives wrapped in an archive.
   bool get isArchived => FileNaming.isArchiveWrapped(fileName);
+
+  /// The format the Library shows for this file, plus the archive it
+  /// arrives in when that is worth mentioning.
+  ///
+  /// Whether an archive gets unpacked is decided exactly the way the
+  /// downloader decides it — on [fileExtension] and the auto-extract setting
+  /// — so the label describes what will really land in the folder. Most
+  /// sources name a PS2 game `God of War (USA).7z`, which says nothing about
+  /// the ISO inside; see `ConsoleFormats.describe`.
+  FormatLabel formatLabel({required bool autoUnzip}) => ConsoleFormats.describe(
+        fileName: fileName,
+        fileExtension: fileExtension,
+        isArchive: FileNaming.isArchiveExtension(fileExtension),
+        consoleId: consoleId,
+        autoUnzip: autoUnzip,
+      );
 }
 
-/// Every file that belongs to the same game, collapsed into one search
-/// result. Searching "pokemon" returns one entry per title, expandable to
-/// the regions/revisions/formats underneath, instead of hundreds of
-/// near-identical flat rows.
+/// Every file of one game on one console, collapsed into one search result.
+/// Searching "god of war" returns one entry for God of War and one for God
+/// of War II, each expandable to every region, revision and format of that
+/// game, instead of hundreds of near-identical flat rows.
 class DownloadableFileGroup {
   const DownloadableFileGroup({
     required this.key,
@@ -58,10 +75,16 @@ class DownloadableFileGroup {
     required this.variantCount,
     required this.totalSize,
     required this.variants,
+    this.consoleId = '',
   });
 
-  /// Normalized grouping key (lowercased, trimmed title).
+  /// The game's group key (`RomTitle.key` of its title), shared by all of
+  /// its files.
   final String key;
+
+  /// The console the files belong to. The same title on two consoles is two
+  /// different games, so this is part of a group's identity.
+  final String consoleId;
 
   /// Display title for the group — the shared, tag-stripped game name.
   final String title;
@@ -69,6 +92,11 @@ class DownloadableFileGroup {
   final int variantCount;
   final int totalSize;
   final List<DownloadableFileWithTags> variants;
+
+  /// Unique across consoles, for widget keys and expansion state.
+  String get id => idFor(consoleId, key);
+
+  static String idFor(String consoleId, String key) => '$consoleId/$key';
 
   /// A group with exactly one file behaves like a plain row: there is
   /// nothing to expand into.
@@ -82,16 +110,15 @@ class DownloadableFileGroup {
     return variants.reduce((a, b) => b.fileSize > a.fileSize ? b : a);
   }
 
-  /// Distinct content formats inside the group (`.iso`, `.chd`, …), for the
-  /// summary line on the collapsed header.
-  List<String> get formats {
+  /// Distinct formats inside the group, labelled the way each variant is
+  /// (see [DownloadableFileWithTags.formatLabel]), for the collapsed header.
+  List<String> formatsFor({required bool autoUnzip}) {
     final seen = <String>{};
-    for (final v in variants) {
-      final ext = v.contentExtension;
-      if (ext.isNotEmpty) seen.add(ext.replaceFirst('.', '').toUpperCase());
+    for (final variant in variants) {
+      final format = variant.formatLabel(autoUnzip: autoUnzip).format;
+      if (format.isNotEmpty) seen.add(format);
     }
-    final sorted = seen.toList()..sort();
-    return sorted;
+    return seen.toList()..sort();
   }
 }
 

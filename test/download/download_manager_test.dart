@@ -18,7 +18,6 @@ import 'package:pixelvault/core/settings/settings_repository.dart';
 import 'package:pixelvault/core/storage/saf_storage_helper.dart';
 import 'package:pixelvault_torrent/pixelvault_torrent.dart';
 import 'package:saf_stream/saf_stream.dart';
-import 'package:saf_util/saf_util_platform_interface.dart' show SafDocumentFile;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MockPixelvaultTorrent extends Mock implements PixelvaultTorrent {}
@@ -297,56 +296,35 @@ void main() {
     await Future.delayed(const Duration(milliseconds: 300));
   });
 
-  group('deleteDownload(deleteFile: true)', () {
-    test('deletes the written file for a plain (non-extracted) download', () async {
-      await settingsNotifier.setAutoUnzip(false);
-      when(() => torrentPlugin.startFileDownload(
-            magnet: any(named: 'magnet'),
-            fileIndex: any(named: 'fileIndex'),
-            fileName: any(named: 'fileName'),
-            downloadId: any(named: 'downloadId'),
-          )).thenThrow(Exception('not needed for this test'));
-      when(() => torrentPlugin.cancelFileDownload(
-            magnet: any(named: 'magnet'),
-            downloadId: any(named: 'downloadId'),
-          )).thenAnswer((_) async {});
-      when(() => safStorage.isValidTreeUri(any())).thenAnswer((_) async => true);
-      final doc = SafDocumentFile(uri: 'content://file/1', name: 'game.zip', isDir: false, length: 100, lastModified: 0);
-      when(() => safStorage.findChild(any(), any())).thenAnswer((_) async => doc);
-      when(() => safStorage.deleteFile(any())).thenAnswer((_) async {});
+  test('deleting a completed attempt from the history never deletes the downloaded file', () async {
+    when(() => torrentPlugin.startFileDownload(
+          magnet: any(named: 'magnet'),
+          fileIndex: any(named: 'fileIndex'),
+          fileName: any(named: 'fileName'),
+          downloadId: any(named: 'downloadId'),
+        )).thenAnswer((_) async {});
+    when(() => torrentPlugin.finishFileDownload(
+          magnet: any(named: 'magnet'),
+          fileName: any(named: 'fileName'),
+          downloadId: any(named: 'downloadId'),
+          destDirUri: any(named: 'destDirUri'),
+          subPath: any(named: 'subPath'),
+          extract: any(named: 'extract'),
+        )).thenAnswer((_) async => ['game.zip']);
+    when(() => safStorage.deleteFile(any())).thenAnswer((_) async {});
 
-      final file = _torrentFile(1, fileName: 'game.zip', fileExtension: '.zip');
-      await manager.startDownload(file);
-      await manager.deleteDownload(1, deleteFile: true);
+    await manager.startDownload(_torrentFile(1));
+    await Future.delayed(const Duration(milliseconds: 1300));
+    progressController.add(completedEvent(1));
+    await Future.delayed(const Duration(milliseconds: 300));
+    expect(tracker.get(1)?.status, DownloadStatus.completed);
 
-      verify(() => safStorage.findChild('content://tree/primary', 'game.zip')).called(1);
-      verify(() => safStorage.deleteFile('content://file/1')).called(1);
+    await manager.deleteHistoryEntries({1});
 
-      await Future.delayed(const Duration(milliseconds: 1300));
-    });
-
-    test('does not attempt to delete a file that was auto-extracted', () async {
-      await settingsNotifier.setAutoUnzip(true);
-      when(() => torrentPlugin.startFileDownload(
-            magnet: any(named: 'magnet'),
-            fileIndex: any(named: 'fileIndex'),
-            fileName: any(named: 'fileName'),
-            downloadId: any(named: 'downloadId'),
-          )).thenThrow(Exception('not needed for this test'));
-      when(() => torrentPlugin.cancelFileDownload(
-            magnet: any(named: 'magnet'),
-            downloadId: any(named: 'downloadId'),
-          )).thenAnswer((_) async {});
-
-      final file = _torrentFile(1, fileName: 'game.zip', fileExtension: '.zip');
-      await manager.startDownload(file);
-      await manager.deleteDownload(1, deleteFile: true);
-
-      verifyNever(() => safStorage.findChild(any(), any()));
-      verifyNever(() => safStorage.deleteFile(any()));
-
-      await Future.delayed(const Duration(milliseconds: 1300));
-    });
+    expect(tracker.get(1), isNull);
+    expect(await downloadRepo.getAll(), isEmpty);
+    // Removing an entry from the history is not the same as deleting the game.
+    verifyNever(() => safStorage.deleteFile(any()));
   });
 
   test('a torrent download reaches DownloadStatus.completed', () async {

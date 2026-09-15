@@ -6,6 +6,7 @@ import 'core/download/download_manager.dart';
 import 'core/providers.dart';
 import 'core/router/app_router.dart';
 import 'core/settings/settings_repository.dart';
+import 'core/theme/gengar_metrics.dart';
 import 'core/theme/gengar_theme.dart';
 import 'l10n/app_localizations.dart';
 
@@ -29,8 +30,14 @@ class PixelVaultApp extends ConsumerWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
-      builder: (context, child) => _DownloadNotificationLocale(
-        child: SourceInstallListener(child: child ?? const SizedBox()),
+      // `GengarMetricsScope` sits outermost so every screen, dialog and
+      // bottom sheet below it sizes itself from the real viewport — this
+      // app runs on handhelds with small (and secondary) displays, not just
+      // phones.
+      builder: (context, child) => GengarMetricsScope(
+        child: _DownloadNotificationLocale(
+          child: SourceInstallListener(child: child ?? const SizedBox()),
+        ),
       ),
     );
   }

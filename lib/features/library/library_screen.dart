@@ -4,9 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/db/database.dart';
+import '../../core/download/download_progress_tracker.dart';
+import '../../core/download/download_status.dart';
 import '../../core/models/downloadable_file.dart';
 import '../../core/providers.dart';
+import '../../core/scraping/file_naming.dart';
+import '../../core/scraping/rom_title.dart';
 import '../../core/scraping/tag_constants.dart';
+import '../../core/settings/settings_repository.dart';
+import '../../core/storage/installed_games_index.dart';
 import '../../core/theme/gengar_colors.dart';
 import '../../core/theme/gengar_components.dart';
 import '../../core/theme/gengar_typography.dart';
@@ -16,11 +22,9 @@ import '../../l10n/app_localizations.dart';
 /// Search + tag-filtered rom list, optionally scoped to the console chosen
 /// in [PlatformSelectScreen] (null = search across every console).
 ///
-/// Results are grouped by game rather than listed one row per file. A search
-/// for "pokemon" used to return every region, revision and container format
-/// of every match as a separate row — hundreds of near-identical lines, with
-/// the page limit cutting through the middle of a single game's variants.
-/// Now each game is one row that expands to show its versions.
+/// Results are grouped by game rather than listed one row per file: each
+/// game is one row that expands to every region, revision and format of it.
+/// A game that is already in the folder it would download to says so.
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key, this.console});
 
@@ -56,9 +60,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // newer one's results when it finally resolves.
   int _requestId = 0;
 
+  /// What each console's destination folder already holds, by console id.
+  Map<String, InstalledGames> _installed = const {};
+
   @override
   void initState() {
     super.initState();
+    // Games may have been added to or removed from the folder since this
+    // screen was last open, so look again rather than trust the cache.
+    ref.read(installedGamesIndexProvider).invalidate();
     _reload();
   }
 
@@ -112,8 +122,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         _meta = _metaLabel(groups);
         // A lone result is almost always the one the user wants, so save
         // them the extra tap.
-        if (groups.length == 1) _expandedGroups.add(groups.first.key);
+        if (groups.length == 1) _expandedGroups.add(groups.first.id);
       });
+      _refreshInstalled(groups);
     }).catchError((Object e) {
       if (!mounted || requestId != _requestId) return;
       setState(() {
@@ -144,10 +155,37 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         _isLoadingMore = false;
         _meta = _metaLabel(_groups);
       });
+      _refreshInstalled(more);
     } catch (_) {
       if (!mounted || requestId != _requestId) return;
       setState(() => _isLoadingMore = false);
     }
+  }
+
+  /// Looks up what the destination folder of each console in [groups]
+  /// already contains, so a game that is already there can say so.
+  Future<void> _refreshInstalled(List<DownloadableFileGroup> groups) async {
+    if (groups.isEmpty) return;
+    final index = ref.read(installedGamesIndexProvider);
+    final catalog = ref.read(catalogRepositoryProvider);
+    final settings = ref.read(settingsProvider).value ?? const SettingsState();
+    final found = <String, InstalledGames>{};
+    try {
+      for (final consoleId in {for (final group in groups) group.consoleId}) {
+        // Only needed to find the console-named subfolder, but cheap.
+        final console = widget.console?.id == consoleId ? widget.console : await catalog.getConsoleById(consoleId);
+        found[consoleId] = await index.forConsole(
+          settings,
+          consoleId: consoleId,
+          consoleName: console?.name ?? '',
+        );
+      }
+    } catch (_) {
+      // Only the badge is lost; the results themselves are unaffected.
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _installed = {..._installed, ...found});
   }
 
   String _metaLabel(List<DownloadableFileGroup> groups) {
@@ -164,12 +202,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     _reload();
   }
 
-  void _startDownload(BuildContext context, DownloadableFileWithTags file) {
+  Future<void> _startDownload(BuildContext context, DownloadableFileWithTags file) async {
     final l10n = AppLocalizations.of(context)!;
-    ref.read(downloadManagerProvider).startDownload(file);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.libraryDownloadStartedSnackbar(file.name))),
-    );
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await ref.read(downloadManagerProvider).startDownload(file);
+    // Tapping download on a file that is already downloading used to report
+    // "started" and quietly do nothing; say what actually happened.
+    final message = switch (result) {
+      StartDownloadResult.started => l10n.libraryDownloadStartedSnackbar(file.name),
+      StartDownloadResult.resumed => l10n.libraryDownloadResumedSnackbar(file.name),
+      StartDownloadResult.alreadyActive => l10n.libraryDownloadAlreadyActiveSnackbar(file.name),
+    };
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openFilterSheet() async {
@@ -194,6 +238,27 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final autoUnzip = ref.watch(settingsProvider.select((s) => s.value?.autoUnzip ?? true));
+
+    // A download landing, or a different destination folder, changes which
+    // games are already there.
+    ref.listen(
+      downloadProgressTrackerProvider.select(
+        (items) => items.where((item) => item.status == DownloadStatus.completed).length,
+      ),
+      (previous, next) {
+        if (previous == null || next <= previous) return;
+        ref.read(installedGamesIndexProvider).invalidate();
+        _refreshInstalled(_groups);
+      },
+    );
+    ref.listen(
+      settingsProvider.select(
+        (s) => (s.value?.downloadDirectory, s.value?.separateByConsole, s.value?.consoleDownloadDirectories),
+      ),
+      (previous, next) => _refreshInstalled(_groups),
+    );
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: GengarScreenBackground(
@@ -297,11 +362,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     }
                     final group = _groups[index];
                     return _GroupTile(
-                      key: Key('library_group_tile_${group.key}'),
+                      key: Key('library_group_tile_${group.id}'),
                       group: group,
-                      expanded: _expandedGroups.contains(group.key),
+                      installed: _installed[group.consoleId] ?? InstalledGames.empty,
+                      autoUnzip: autoUnzip,
+                      expanded: _expandedGroups.contains(group.id),
                       onToggle: () => setState(() {
-                        if (!_expandedGroups.remove(group.key)) _expandedGroups.add(group.key);
+                        if (!_expandedGroups.remove(group.id)) _expandedGroups.add(group.id);
                       }),
                       onDownload: (file) => _startDownload(context, file),
                     );
@@ -378,39 +445,55 @@ class _FilterSheet extends StatelessWidget {
   }
 }
 
-/// One game. Collapsed it summarizes how many versions exist and in which
-/// formats; expanded it lists them, each independently downloadable.
+/// One game. Collapsed it summarizes how many versions exist, in which
+/// formats, and whether the game is already in its folder; expanded it lists
+/// the versions, each independently downloadable.
 class _GroupTile extends StatelessWidget {
   const _GroupTile({
     super.key,
     required this.group,
+    required this.installed,
+    required this.autoUnzip,
     required this.expanded,
     required this.onToggle,
     required this.onDownload,
   });
 
   final DownloadableFileGroup group;
+  final InstalledGames installed;
+  final bool autoUnzip;
   final bool expanded;
   final VoidCallback onToggle;
   final ValueChanged<DownloadableFileWithTags> onDownload;
+
+  /// Whether this exact file — or, for an archive that gets unpacked, what
+  /// comes out of it — is already in the folder.
+  bool _variantInFolder(DownloadableFileWithTags file) {
+    if (installed.hasFile(file.fileName)) return true;
+    final unpacks = autoUnzip && FileNaming.isArchiveExtension(file.fileExtension);
+    return unpacks && installed.hasStem(RomTitle.stripExtensions(file.fileName));
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final primary = group.primary;
-    final formats = group.formats;
+    final formats = group.formatsFor(autoUnzip: autoUnzip);
+    // Matched on the game, not the file: a God of War in the folder counts
+    // whichever region or format it was saved as.
+    final inFolder = installed.hasGame(group.key);
 
     return Container(
       decoration: BoxDecoration(
         color: GengarColors.cardFill.withValues(alpha: GengarColors.cardFillOpacity),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: GengarColors.cardBorder),
+        border: Border.all(color: inFolder ? GengarColors.success.withValues(alpha: 0.32) : GengarColors.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            key: Key('library_group_header_${group.key}'),
+            key: Key('library_group_header_${group.id}'),
             borderRadius: BorderRadius.circular(15),
             // A single-variant group has nothing to expand into, so tapping
             // the header does nothing rather than opening an empty drawer.
@@ -437,6 +520,11 @@ class _GroupTile extends StatelessWidget {
                           runSpacing: 4,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            if (inFolder)
+                              _InFolderBadge(
+                                key: Key('library_in_folder_${group.id}'),
+                                label: l10n.libraryInstalledBadge,
+                              ),
                             if (!group.isSingle)
                               Text(
                                 l10n.libraryVariantCount(group.variantCount),
@@ -486,6 +574,8 @@ class _GroupTile extends StatelessWidget {
               _VariantRow(
                 key: Key('library_variant_${variant.id}'),
                 file: variant,
+                autoUnzip: autoUnzip,
+                inFolder: _variantInFolder(variant),
                 onDownload: () => onDownload(variant),
               ),
             const SizedBox(height: 4),
@@ -496,11 +586,19 @@ class _GroupTile extends StatelessWidget {
   }
 }
 
-/// One concrete file inside a group: its region/language tags, format and size.
+/// One concrete file inside a group: its format, region/language tags and size.
 class _VariantRow extends StatelessWidget {
-  const _VariantRow({super.key, required this.file, required this.onDownload});
+  const _VariantRow({
+    super.key,
+    required this.file,
+    required this.autoUnzip,
+    required this.inFolder,
+    required this.onDownload,
+  });
 
   final DownloadableFileWithTags file;
+  final bool autoUnzip;
+  final bool inFolder;
   final VoidCallback onDownload;
 
   @override
@@ -513,7 +611,9 @@ class _VariantRow extends StatelessWidget {
       ...categorized.languages.tags,
       ...categorized.videoStandards.tags,
     ];
-    final format = file.contentExtension.replaceFirst('.', '').toUpperCase();
+    // Labelled by what lands in the folder — "God of War (USA).7z" is an ISO
+    // once unpacked — with the archive it travels in noted beside the size.
+    final label = file.formatLabel(autoUnzip: autoUnzip);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
@@ -527,9 +627,14 @@ class _VariantRow extends StatelessWidget {
                   spacing: 5,
                   runSpacing: 5,
                   children: [
-                    if (format.isNotEmpty) _TagPill(label: format, accent: true),
+                    if (label.format.isNotEmpty) _TagPill(label: label.format, accent: true),
                     for (final tag in accentTags.take(1)) _TagPill(label: tag, accent: true),
                     for (final tag in plainTags.take(4)) _TagPill(label: tag, accent: false),
+                    if (inFolder)
+                      _InFolderBadge(
+                        key: Key('library_in_folder_file_${file.id}'),
+                        label: l10n.libraryVariantInstalledBadge,
+                      ),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -539,17 +644,17 @@ class _VariantRow extends StatelessWidget {
                       formatBytes(file.fileSize),
                       style: GengarTypography.monoAccent(fontSize: 10.5),
                     ),
-                    // The download arrives wrapped; auto-extraction unpacks
-                    // it, so say so rather than labelling the game ".7z".
-                    if (file.isArchived) ...[
+                    if (label.archive != null) ...[
                       const SizedBox(width: 6),
-                      Text(
-                        l10n.libraryArchivedBadge(
-                          file.fileExtension.replaceFirst('.', '').toUpperCase(),
-                        ),
-                        style: GengarTypography.monoAccent(
-                          fontSize: 10,
-                          color: GengarColors.onBackgroundMuted,
+                      Flexible(
+                        child: Text(
+                          l10n.libraryArchivedBadge(label.archive!),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GengarTypography.monoAccent(
+                            fontSize: 10,
+                            color: GengarColors.onBackgroundMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -560,6 +665,45 @@ class _VariantRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           _DownloadButton(onTap: onDownload, size: 36),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Already in the folder": the game (or this file) is where a download
+/// would put it.
+class _InFolderBadge extends StatelessWidget {
+  const _InFolderBadge({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: GengarColors.success.withValues(alpha: 0.14),
+        border: Border.all(color: GengarColors.success.withValues(alpha: 0.40)),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.check_circle_rounded, size: 11, color: GengarColors.success),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GengarTypography.monoAccent(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: GengarColors.success,
+              ),
+            ),
+          ),
         ],
       ),
     );

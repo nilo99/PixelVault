@@ -7,6 +7,7 @@ import '../../core/theme/gengar_components.dart';
 import '../../core/theme/gengar_tokens.dart';
 import '../../core/theme/gengar_typography.dart';
 import '../../l10n/app_localizations.dart';
+import '../../core/theme/gengar_metrics.dart';
 
 /// Data model for each onboarding step.
 class _OnboardingStep {
@@ -146,69 +147,105 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
 
             // ─── Bottom: dots + button ───
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Page dots
-                  Row(
-                    children: List.generate(steps.length, (index) {
-                      final isActive = index == _currentPage;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        margin: const EdgeInsets.only(right: 7),
-                        width: isActive ? 22 : 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(99),
-                          gradient: isActive ? GengarColors.ctaGradient : null,
-                          color: isActive ? null : Colors.white.withValues(alpha: 0.16),
-                        ),
-                      );
-                    }),
-                  ),
+            // Side by side on a normal screen; stacked, with a full-width
+            // button, on a secondary display, where the dots and the button
+            // together need more width than the screen has.
+            Builder(
+              builder: (context) {
+                final metrics = GengarMetrics.of(context);
+                final stacked = metrics.isTiny;
 
-                  // "Seguinte →" / "Começar" button
-                  GestureDetector(
-                    onTap: () => _nextPage(steps.length),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                final dots = Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(steps.length, (index) {
+                    final isActive = index == _currentPage;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      margin: EdgeInsets.only(right: index == steps.length - 1 ? 0 : 7),
+                      width: isActive ? 22 : 7,
+                      height: 7,
                       decoration: BoxDecoration(
-                        gradient: GengarColors.ctaGradient,
-                        borderRadius: BorderRadius.circular(tokens.radiusMd),
-                        boxShadow: [
-                          BoxShadow(
-                            color: GengarColors.primary.withValues(alpha: 0.5),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(99),
+                        gradient: isActive ? GengarColors.ctaGradient : null,
+                        color: isActive ? null : Colors.white.withValues(alpha: 0.16),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
+                    );
+                  }),
+                );
+
+                final button = GestureDetector(
+                  onTap: () => _nextPage(steps.length),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: stacked ? 16 : (24 * metrics.scale).clamp(16.0, 24.0),
+                      vertical: stacked ? 12 : 14,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: GengarColors.ctaGradient,
+                      borderRadius: BorderRadius.circular(tokens.radiusMd),
+                      boxShadow: [
+                        BoxShadow(
+                          color: GengarColors.primary.withValues(alpha: 0.5),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: stacked ? MainAxisSize.max : MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(
+                          child: Text(
                             _currentPage == steps.length - 1 ? l10n.onboardingStart : l10n.onboardingNext,
-                            style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: GengarTypography.manropeFamily,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: GengarColors.onPrimary,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            color: GengarColors.onPrimary,
-                            size: 19,
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: GengarColors.onPrimary,
+                          size: 19,
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                );
+
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    stacked ? metrics.gutter : 24,
+                    0,
+                    stacked ? metrics.gutter : 24,
+                    metrics.gap(28),
+                  ),
+                  child: stacked
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            dots,
+                            SizedBox(height: metrics.gap(12)),
+                            SizedBox(width: double.infinity, child: button),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            dots,
+                            const SizedBox(width: 12),
+                            Flexible(child: button),
+                          ],
+                        ),
+                );
+              },
             ),
           ],
         ),

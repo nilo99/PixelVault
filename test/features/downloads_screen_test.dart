@@ -16,6 +16,7 @@ class MockDownloadManager extends Mock implements DownloadManager {}
 void main() {
   setUpAll(() {
     registerFallbackValue(0);
+    registerFallbackValue(<int>{});
   });
 
   Future<ProviderContainer> pumpScreen(
@@ -75,16 +76,16 @@ void main() {
     verify(() => manager.retryDownload(7)).called(1);
   });
 
-  testWidgets('tapping remove on a completed download calls deleteDownload', (tester) async {
+  testWidgets('tapping delete on a completed download removes only that history entry', (tester) async {
     final manager = MockDownloadManager();
-    when(() => manager.deleteDownload(any())).thenAnswer((_) async {});
+    when(() => manager.deleteHistoryEntries(any())).thenAnswer((_) async {});
 
     const item = DownloadItem(id: 3, name: 'Done Game', fileName: 'done.zip', fileSize: 200, status: DownloadStatus.completed);
     await pumpScreen(tester, item: item, manager: manager);
     await openHistory(tester);
 
-    await tester.tap(find.byKey(const Key('downloads_remove_button_3')));
-    verify(() => manager.deleteDownload(3)).called(1);
+    await tester.tap(find.byKey(const Key('downloads_delete_button_3')));
+    verify(() => manager.deleteHistoryEntries({3})).called(1);
   });
 
   testWidgets('a finished download is kept in History, not in the Active tab', (tester) async {

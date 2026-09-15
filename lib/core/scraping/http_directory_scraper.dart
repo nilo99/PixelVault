@@ -9,6 +9,7 @@ import '../models/content_type.dart';
 import 'file_naming.dart';
 import 'file_parsing.dart';
 import 'file_size_utils.dart';
+import 'rom_title.dart';
 import 'scraping_constants.dart';
 
 /// Port of Milou's `DatabaseScrapingService` HTTP branch: fetches a single
@@ -127,13 +128,20 @@ class HttpDirectoryScraper {
       final resolvedName = FileNaming.fileNameFromHref(href);
       final fileName = resolvedName.isEmpty ? FileNaming.fallbackName(0, displayName) : resolvedName;
 
+      // Every region, revision and format of a game has to end up with the
+      // same title, or the Library shows "God of War .7z" and "God of War
+      // .chd" as two different games. `cleanName` still carries the
+      // extension, so it is only the fallback.
+      final gameTitle = RomTitle.forCatalog(fileName: fileName, displayName: cleanName);
+
       companions.add(DownloadableFilesCompanion.insert(
-        name: cleanName,
+        name: gameTitle,
         fileName: fileName,
         consoleId: consoleId,
         downloadUrl: FileParsing.buildDownloadUrl(baseUrl, href),
         fileSize: Value(FileSizeUtils.parseFileSize(fileSizeText)),
         fileExtension: Value(FileNaming.extensionOf(fileName)),
+        groupKey: Value(RomTitle.key(gameTitle)),
       ));
 
       final rowTags = [...tags, FileParsing.normalizeTag(contentType.toJson())];

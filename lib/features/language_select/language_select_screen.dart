@@ -5,6 +5,7 @@ import '../../core/settings/settings_repository.dart';
 import '../../core/theme/gengar_colors.dart';
 import '../../core/theme/gengar_typography.dart';
 import '../../core/theme/gengar_components.dart';
+import '../../core/theme/gengar_metrics.dart';
 
 class SupportedLocale {
   const SupportedLocale({required this.code, required this.ownName});
@@ -47,52 +48,72 @@ class LanguageSelectScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final metrics = GengarMetrics.of(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: GengarScreenBackground(
         isOnboarding: true,
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Image.asset('assets/PixelVault.png', width: 56, height: 56),
+          // One scroll view for the whole page rather than a fixed header
+          // above an `Expanded` list. The header is five lines of text plus
+          // artwork; on a secondary display it alone was taller than the
+          // screen, leaving the language list a negative height. This is
+          // also the first screen anyone sees, and it flashes briefly on
+          // every cold start while settings load.
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  metrics.isTiny ? metrics.gutter : 24,
+                  metrics.gap(32),
+                  metrics.isTiny ? metrics.gutter : 24,
+                  metrics.gap(24),
                 ),
-                const SizedBox(height: 20),
-                const Icon(Icons.language_rounded, color: GengarColors.primary, size: 26),
-                const SizedBox(height: 10),
-                for (final line in _chromeLines)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Text(
-                      line,
-                      style: TextStyle(fontFamily: GengarTypography.manropeFamily, 
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: GengarColors.onBackgroundMuted,
+                sliver: SliverList.list(
+                  children: [
+                    // The artwork is decoration; on an auxiliary screen the
+                    // five-language prompt is what has to stay visible.
+                    if (!metrics.isTiny) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.asset('assets/PixelVault.png', width: 56, height: 56),
+                        ),
                       ),
-                    ),
-                  ),
-                const SizedBox(height: 28),
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: kSupportedLocales.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final locale = kSupportedLocales[index];
-                      return _LanguageRow(
-                        key: Key('language_select_option_${locale.code}'),
-                        locale: locale,
-                        onTap: () => ref.read(settingsProvider.notifier).setLocale(locale.code),
-                      );
-                    },
-                  ),
+                      const SizedBox(height: 20),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Icon(Icons.language_rounded, color: GengarColors.primary, size: 26),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    for (final line in _chromeLines)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          line,
+                          style: TextStyle(
+                            fontFamily: GengarTypography.manropeFamily,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: GengarColors.onBackgroundMuted,
+                          ),
+                        ),
+                      ),
+                    SizedBox(height: metrics.gap(28)),
+                    for (var index = 0; index < kSupportedLocales.length; index++) ...[
+                      if (index > 0) SizedBox(height: metrics.gap(10)),
+                      _LanguageRow(
+                        key: Key('language_select_option_${kSupportedLocales[index].code}'),
+                        locale: kSupportedLocales[index],
+                        onTap: () => ref.read(settingsProvider.notifier).setLocale(kSupportedLocales[index].code),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -108,13 +129,15 @@ class _LanguageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final metrics = GengarMetrics.of(context);
+    final inset = metrics.isTiny ? 12.0 : 18.0;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          padding: EdgeInsets.symmetric(horizontal: inset, vertical: inset),
           decoration: BoxDecoration(
             color: GengarColors.cardFill.withValues(alpha: GengarColors.cardFillOpacity),
             borderRadius: BorderRadius.circular(16),

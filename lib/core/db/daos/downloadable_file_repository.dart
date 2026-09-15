@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../models/downloadable_file.dart';
+import '../../scraping/rom_title.dart';
 import '../database.dart';
 
 /// One filter clause plus the variables it binds, so the flat and grouped
@@ -15,11 +16,6 @@ class DownloadableFileRepository {
   DownloadableFileRepository(this.db);
 
   final AppDatabase db;
-
-  /// How variants of the same game are collapsed together. The scraper
-  /// already strips `(Europe)`, `(En,Fr,De)` and friends off the display
-  /// name, so every region/revision/format of one game shares its `name`.
-  static const _groupKeyExpr = "LOWER(TRIM(df.name))";
 
   /// Escapes SQLite `LIKE` wildcards (`%`, `_`) in user-typed search terms so
   /// e.g. searching for a literal underscore doesn't match any single
@@ -57,6 +53,9 @@ class DownloadableFileRepository {
   /// batch at the end rather than one batch per file — a pack torrent can
   /// carry tens of thousands of entries, and the old shape issued one extra
   /// batch round-trip per file on top of the insert itself.
+  ///
+  /// A file inserted without a group key gets one derived from its name, so
+  /// search can group it whichever code path inserted it.
   Future<void> insertFilesWithTags(
     List<DownloadableFilesCompanion> files,
     List<List<String>> tagsPerFile,
@@ -65,7 +64,7 @@ class DownloadableFileRepository {
     await db.transaction(() async {
       final tagRows = <FileTagsCompanion>[];
       for (var i = 0; i < files.length; i++) {
-        final inserted = await db.into(db.downloadableFiles).insertReturning(files[i]);
+        final inserted = await db.into(db.downloadableFiles).insertReturning(_withGroupKey(files[i]));
         for (final tag in tagsPerFile[i]) {
           tagRows.add(FileTagsCompanion.insert(fileId: inserted.id, tag: tag));
         }
@@ -75,6 +74,12 @@ class DownloadableFileRepository {
         batch.insertAll(db.fileTags, tagRows, mode: InsertMode.insertOrReplace);
       });
     });
+  }
+
+  static DownloadableFilesCompanion _withGroupKey(DownloadableFilesCompanion file) {
+    if (file.groupKey.present && file.groupKey.value.isNotEmpty) return file;
+    if (!file.name.present) return file;
+    return file.copyWith(groupKey: Value(RomTitle.key(file.name.value)));
   }
 
   Future<void> deleteFilesByConsoleId(String consoleId) {
@@ -193,17 +198,18 @@ LIMIT ? OFFSET ?
     return rows.map(_toFile).toList();
   }
 
-  /// Search, grouped by title instead of one flat row per file.
+  /// Search, grouped by game instead of one flat row per file.
   ///
-  /// Searching `pokemon` used to return a wall of near-identical rows —
-  /// every region, revision and container format of every game, interleaved,
-  /// with the 100-row page limit cutting through the middle of a single
-  /// game's variants. Grouping happens in SQL over [_groupKeyExpr] and
-  /// pagination runs over *groups*, so a game's variants are never split
-  /// across pages.
+  /// A group is one game on one console: every region, revision and format
+  /// of it, joined on `group_key` (see `RomTitle.key`). Searching "god of
+  /// war" gives God of War and God of War II as two entries, each holding its
+  /// `.iso`, `.7z` and `.chd` files from every region. Grouping used to be on
+  /// the stored name, which still carried the extension, so every format of
+  /// a game came back as a separate entry.
   ///
-  /// Two round trips: one for the page of groups, one for every file inside
-  /// them.
+  /// Pagination runs over groups, so a game's files are never split across
+  /// pages. Two round trips: one for the page of groups, one for every file
+  /// inside them.
   Future<List<DownloadableFileGroup>> queryGroupedFiles({
     required String query,
     String? manufacturer,
@@ -224,7 +230,8 @@ LIMIT ? OFFSET ?
 
     final groupRows = await db.customSelect(
       '''
-SELECT $_groupKeyExpr AS group_key,
+SELECT df.console_id AS console_id,
+       df.group_key AS group_key,
        MIN(df.name) AS title,
        COUNT(DISTINCT df.id) AS variant_count,
        SUM(df.file_size) AS total_size
@@ -232,10 +239,11 @@ FROM downloadable_files df
 JOIN consoles c ON df.console_id = c.id
 JOIN manufacturers m ON c.manufacturer_id = m.id
 WHERE ${filter.sql}
-GROUP BY group_key
+GROUP BY df.console_id, df.group_key
 ORDER BY
     CASE WHEN ? = 1 THEN title END ASC,
-    CASE WHEN ? = 0 THEN title END DESC
+    CASE WHEN ? = 0 THEN title END DESC,
+    df.console_id ASC
 LIMIT ? OFFSET ?
 ''',
       variables: [
@@ -250,41 +258,48 @@ LIMIT ? OFFSET ?
 
     if (groupRows.isEmpty) return const [];
 
-    final keys = groupRows.map((r) => r.read<String>('group_key')).toList();
+    final keys = groupRows.map((r) => r.read<String>('group_key')).toSet().toList();
     final placeholders = List.filled(keys.length, '?').join(',');
     final fileRows = await db.customSelect(
       '''
 SELECT df.id, df.name, df.file_name, df.console_id, df.download_url, df.file_size,
-       df.file_extension, df.torrent_file_index, df.torrent_magnet,
-       $_groupKeyExpr AS group_key,
+       df.file_extension, df.torrent_file_index, df.torrent_magnet, df.group_key,
        GROUP_CONCAT(t.tag, '|') as tags
 FROM downloadable_files df
 LEFT JOIN file_tags t ON df.id = t.file_id
 JOIN consoles c ON df.console_id = c.id
 JOIN manufacturers m ON c.manufacturer_id = m.id
 WHERE ${filter.sql}
-  AND $_groupKeyExpr IN ($placeholders)
+  AND df.group_key IN ($placeholders)
 GROUP BY df.id, df.name, df.file_name, df.console_id, df.download_url, df.file_size,
-         df.file_extension, df.torrent_file_index, df.torrent_magnet
-ORDER BY df.name ASC, df.file_size DESC
+         df.file_extension, df.torrent_file_index, df.torrent_magnet, df.group_key
+ORDER BY df.name ASC, df.file_size DESC, df.file_name ASC
 ''',
       variables: [...filter.vars, ...keys.map(Variable.new)],
       readsFrom: {db.downloadableFiles, db.fileTags, db.consoles, db.manufacturers},
     ).get();
 
-    final byKey = <String, List<DownloadableFileWithTags>>{};
+    // A key can repeat across consoles on the page, so files are matched to
+    // their group by console as well as by key.
+    final byGroup = <String, List<DownloadableFileWithTags>>{};
     for (final row in fileRows) {
-      byKey.putIfAbsent(row.read<String>('group_key'), () => []).add(_toFile(row));
+      final id = DownloadableFileGroup.idFor(row.read<String>('console_id'), row.read<String>('group_key'));
+      byGroup.putIfAbsent(id, () => []).add(_toFile(row));
     }
 
     return [
       for (final row in groupRows)
         DownloadableFileGroup(
           key: row.read<String>('group_key'),
+          consoleId: row.read<String>('console_id'),
           title: row.read<String>('title'),
           variantCount: row.read<int>('variant_count'),
           totalSize: row.read<int>('total_size'),
-          variants: byKey[row.read<String>('group_key')] ?? const [],
+          variants: byGroup[DownloadableFileGroup.idFor(
+                row.read<String>('console_id'),
+                row.read<String>('group_key'),
+              )] ??
+              const [],
         ),
     ];
   }

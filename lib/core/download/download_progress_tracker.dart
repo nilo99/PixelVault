@@ -7,12 +7,13 @@ import 'download_status.dart';
 part 'download_progress_tracker.g.dart';
 
 /// Port of Milou's `DownloadProgressTracker` — a `List<DownloadItem>` state
-/// notifier the Downloads screen watches directly. Keyed by [DownloadItem.id]
-/// (not [DownloadItem.fileName], which isn't guaranteed unique across sources).
+/// notifier the Downloads screen watches directly. Keyed by
+/// [DownloadItem.id], the download attempt's row id.
 ///
 /// This is the in-memory view; `DownloadManager` mirrors every change it
-/// makes here into the `downloads` table, and seeds it back through
-/// [replaceAll] on startup so the queue and history survive a restart.
+/// makes here into the `downloads` table, and folds that table back in
+/// through [mergeRestored] on startup so the queue and history survive a
+/// restart.
 @Riverpod(keepAlive: true)
 class DownloadProgressTrackerNotifier extends _$DownloadProgressTrackerNotifier {
   @override
@@ -23,8 +24,7 @@ class DownloadProgressTrackerNotifier extends _$DownloadProgressTrackerNotifier 
     state = [...state, item];
   }
 
-  /// Adds [item], or replaces the existing entry with the same id — used
-  /// when a download is (re)started and gets a fresh persisted record.
+  /// Adds [item], or replaces the existing entry with the same id.
   void upsert(DownloadItem item) {
     final index = state.indexWhere((d) => d.id == item.id);
     if (index == -1) {
@@ -36,9 +36,20 @@ class DownloadProgressTrackerNotifier extends _$DownloadProgressTrackerNotifier 
     ];
   }
 
-  /// Replaces the whole list, newest first — the restore path.
+  /// Replaces the whole list.
   void replaceAll(List<DownloadItem> items) {
     state = List.unmodifiable(items);
+  }
+
+  /// Folds attempts restored from the database into what is already in
+  /// memory, rather than replacing it. A download the user started while the
+  /// restore was still reading keeps its live state; only ids the tracker
+  /// does not know yet are added. [restored] arrives newest first and is
+  /// placed before the live entries, oldest first, matching append order.
+  void mergeRestored(List<DownloadItem> restored) {
+    final known = {for (final d in state) d.id};
+    final missing = restored.where((d) => !known.contains(d.id)).toList().reversed;
+    state = [...missing, ...state];
   }
 
   void updateDownloadProgress(int id, double progress, double speedMBs, int downloadedBytes) {
@@ -62,7 +73,10 @@ class DownloadProgressTrackerNotifier extends _$DownloadProgressTrackerNotifier 
   }) {
     state = [
       for (final item in state)
-        if (item.id == id)
+        // Cancelled is final. A worker still unwinding after the user
+        // cancelled — a copy or an extraction that was already under way —
+        // must not turn the attempt back into copying, unzipping or completed.
+        if (item.id == id && !(item.status == DownloadStatus.cancelled && status != DownloadStatus.cancelled))
           item.copyWith(
             status: status,
             failureReason: failureReason,
@@ -83,16 +97,30 @@ class DownloadProgressTrackerNotifier extends _$DownloadProgressTrackerNotifier 
     state = state.where((d) => d.id != id).toList();
   }
 
-  /// Drops every finished/failed entry, keeping anything still running.
+  void removeMany(Set<int> ids) {
+    state = state.where((d) => !ids.contains(d.id)).toList();
+  }
+
+  /// Drops every finished, failed or cancelled entry, keeping the queue.
   void removeTerminal() {
     state = state.where((d) => !d.isTerminal).toList();
   }
 
   List<DownloadItem> get terminalItems => state.where((d) => d.isTerminal).toList();
 
+  /// The unfinished attempt — running or interrupted — at [downloadUrl], if
+  /// there is one. Two of those would write to the same destination file.
+  DownloadItem? queuedFor(String downloadUrl) {
+    if (downloadUrl.isEmpty) return null;
+    return state.where((d) => !d.isTerminal && d.downloadUrl == downloadUrl).firstOrNull;
+  }
+
   bool canRetryDownload(int id) {
-    final item = state.where((d) => d.id == id).firstOrNull;
-    return item != null && (item.status == DownloadStatus.failed || item.status == DownloadStatus.stopped);
+    final item = get(id);
+    return item != null &&
+        (item.status == DownloadStatus.failed ||
+            item.status == DownloadStatus.stopped ||
+            item.status == DownloadStatus.cancelled);
   }
 
   /// Puts a failed/stopped download back into the queue.

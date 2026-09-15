@@ -413,5 +413,76 @@
   "errorLinkExpired": "este link já não é válido",
   "errorServerResponse": "resposta inválida do servidor",
   "errorSourceUnreachable": "não foi possível contactar o servidor",
-  "errorUnexpected": "ocorreu um erro inesperado"
+  "errorUnexpected": "ocorreu um erro inesperado",
+  "commonDelete": "Apagar",
+  "downloadsStatusCancelled": "Cancelado",
+  "downloadsDeleteTooltip": "Apagar do histórico",
+  "downloadsSelectTooltip": "Selecionar",
+  "downloadsExitSelectionTooltip": "Terminar seleção",
+  "downloadsSelectedCount": "{count, plural, =1{1 selecionado} other{{count} selecionados}}",
+  "@downloadsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsDeleteSelected": "Apagar selecionados",
+  "downloadsDeleteSelectedConfirmTitle": "{count, plural, =1{Apagar 1 entrada do histórico?} other{Apagar {count} entradas do histórico?}}",
+  "@downloadsDeleteSelectedConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "downloadsClearHistoryConfirmTitle": "Limpar todo o histórico?",
+  "downloadsHistoryDeleteConfirmBody": "Os jogos que já descarregaste ficam na pasta. Só as entradas do histórico são apagadas.",
+  "libraryDownloadResumedSnackbar": "A retomar {name}",
+  "@libraryDownloadResumedSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryDownloadAlreadyActiveSnackbar": "{name} já está a descarregar",
+  "@libraryDownloadAlreadyActiveSnackbar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryInstalledBadge": "Já está na pasta",
+  "libraryVariantInstalledBadge": "Na pasta",
+  "esdeSetupTitle": "Usas o ES-DE?",
+  "esdeSetupBody": "Se já tens a pasta ROMs do ES-DE neste dispositivo, apontamos cada consola para a subpasta certa (psx, ps2, n3ds…) e os jogos vão direitos para onde o ES-DE os procura.",
+  "esdeSetupPickButton": "Escolher a pasta ROMs",
+  "esdeSetupSkipButton": "Agora não",
+  "esdeSetupDone": "{count, plural, =1{1 consola configurada.} other{{count} consolas configuradas.}}",
+  "@esdeSetupDone": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupCreatedFolders": "{count, plural, =1{Criada 1 pasta que faltava.} other{Criadas {count} pastas que faltavam.}}",
+  "@esdeSetupCreatedFolders": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "esdeSetupNotEsde": "Essa pasta não parece ser a pasta ROMs do ES-DE. Escolhe a pasta que contém psx, ps2, snes…",
+  "esdeSetupFailed": "Não foi possível configurar as pastas.",
+  "settingsEsdeTitle": "Pastas do ES-DE",
+  "settingsEsdeSubtitle": "Configurar a partir da pasta ROMs",
+  "settingsDiagnosticsSection": "Diagnóstico",
+  "settingsDiagnosticsCopyTitle": "Copiar registo de erros",
+  "settingsDiagnosticsCopySubtitle": "Para enviares se algo correr mal",
+  "settingsDiagnosticsCopied": "Registo copiado.",
+  "settingsDiagnosticsEmpty": "Ainda não há erros registados."
 }

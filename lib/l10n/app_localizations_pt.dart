@@ -656,4 +656,131 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errorUnexpected => 'ocorreu um erro inesperado';
+
+  @override
+  String get commonDelete => 'Apagar';
+
+  @override
+  String get downloadsStatusCancelled => 'Cancelado';
+
+  @override
+  String get downloadsDeleteTooltip => 'Apagar do histórico';
+
+  @override
+  String get downloadsSelectTooltip => 'Selecionar';
+
+  @override
+  String get downloadsExitSelectionTooltip => 'Terminar seleção';
+
+  @override
+  String downloadsSelectedCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selecionados',
+      one: '1 selecionado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsDeleteSelected => 'Apagar selecionados';
+
+  @override
+  String downloadsDeleteSelectedConfirmTitle(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Apagar $count entradas do histórico?',
+      one: 'Apagar 1 entrada do histórico?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsClearHistoryConfirmTitle => 'Limpar todo o histórico?';
+
+  @override
+  String get downloadsHistoryDeleteConfirmBody =>
+      'Os jogos que já descarregaste ficam na pasta. Só as entradas do histórico são apagadas.';
+
+  @override
+  String libraryDownloadResumedSnackbar(String name) {
+    return 'A retomar $name';
+  }
+
+  @override
+  String libraryDownloadAlreadyActiveSnackbar(String name) {
+    return '$name já está a descarregar';
+  }
+
+  @override
+  String get libraryInstalledBadge => 'Já está na pasta';
+
+  @override
+  String get libraryVariantInstalledBadge => 'Na pasta';
+
+  @override
+  String get esdeSetupTitle => 'Usas o ES-DE?';
+
+  @override
+  String get esdeSetupBody =>
+      'Se já tens a pasta ROMs do ES-DE neste dispositivo, apontamos cada consola para a subpasta certa (psx, ps2, n3ds…) e os jogos vão direitos para onde o ES-DE os procura.';
+
+  @override
+  String get esdeSetupPickButton => 'Escolher a pasta ROMs';
+
+  @override
+  String get esdeSetupSkipButton => 'Agora não';
+
+  @override
+  String esdeSetupDone(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count consolas configuradas.',
+      one: '1 consola configurada.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String esdeSetupCreatedFolders(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Criadas $count pastas que faltavam.',
+      one: 'Criada 1 pasta que faltava.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get esdeSetupNotEsde =>
+      'Essa pasta não parece ser a pasta ROMs do ES-DE. Escolhe a pasta que contém psx, ps2, snes…';
+
+  @override
+  String get esdeSetupFailed => 'Não foi possível configurar as pastas.';
+
+  @override
+  String get settingsEsdeTitle => 'Pastas do ES-DE';
+
+  @override
+  String get settingsEsdeSubtitle => 'Configurar a partir da pasta ROMs';
+
+  @override
+  String get settingsDiagnosticsSection => 'Diagnóstico';
+
+  @override
+  String get settingsDiagnosticsCopyTitle => 'Copiar registo de erros';
+
+  @override
+  String get settingsDiagnosticsCopySubtitle =>
+      'Para enviares se algo correr mal';
+
+  @override
+  String get settingsDiagnosticsCopied => 'Registo copiado.';
+
+  @override
+  String get settingsDiagnosticsEmpty => 'Ainda não há erros registados.';
 }

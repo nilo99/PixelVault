@@ -646,4 +646,131 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get errorUnexpected => 'ein unerwarteter Fehler ist aufgetreten';
+
+  @override
+  String get commonDelete => 'Löschen';
+
+  @override
+  String get downloadsStatusCancelled => 'Abgebrochen';
+
+  @override
+  String get downloadsDeleteTooltip => 'Aus dem Verlauf löschen';
+
+  @override
+  String get downloadsSelectTooltip => 'Auswählen';
+
+  @override
+  String get downloadsExitSelectionTooltip => 'Auswahl beenden';
+
+  @override
+  String downloadsSelectedCount(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ausgewählt',
+      one: '1 ausgewählt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsDeleteSelected => 'Auswahl löschen';
+
+  @override
+  String downloadsDeleteSelectedConfirmTitle(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Verlaufseinträge löschen?',
+      one: '1 Verlaufseintrag löschen?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get downloadsClearHistoryConfirmTitle => 'Gesamten Verlauf löschen?';
+
+  @override
+  String get downloadsHistoryDeleteConfirmBody =>
+      'Bereits heruntergeladene Spiele bleiben im Ordner. Nur die Verlaufseinträge werden gelöscht.';
+
+  @override
+  String libraryDownloadResumedSnackbar(String name) {
+    return '$name wird fortgesetzt';
+  }
+
+  @override
+  String libraryDownloadAlreadyActiveSnackbar(String name) {
+    return '$name wird bereits heruntergeladen';
+  }
+
+  @override
+  String get libraryInstalledBadge => 'Bereits im Ordner';
+
+  @override
+  String get libraryVariantInstalledBadge => 'Im Ordner';
+
+  @override
+  String get esdeSetupTitle => 'Nutzt du ES-DE?';
+
+  @override
+  String get esdeSetupBody =>
+      'Wenn dieses Gerät bereits den ES-DE-ROMs-Ordner hat, wird jede Konsole auf den richtigen Unterordner gesetzt (psx, ps2, n3ds…), damit Spiele genau dort landen, wo ES-DE sie sucht.';
+
+  @override
+  String get esdeSetupPickButton => 'ROMs-Ordner wählen';
+
+  @override
+  String get esdeSetupSkipButton => 'Jetzt nicht';
+
+  @override
+  String esdeSetupDone(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Konsolen eingerichtet.',
+      one: '1 Konsole eingerichtet.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String esdeSetupCreatedFolders(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count fehlende Ordner erstellt.',
+      one: '1 fehlender Ordner erstellt.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get esdeSetupNotEsde =>
+      'Das sieht nicht nach dem ES-DE-ROMs-Ordner aus. Wähle den Ordner mit psx, ps2, snes…';
+
+  @override
+  String get esdeSetupFailed => 'Ordner konnten nicht eingerichtet werden.';
+
+  @override
+  String get settingsEsdeTitle => 'ES-DE-Ordner';
+
+  @override
+  String get settingsEsdeSubtitle => 'Aus dem ROMs-Ordner einrichten';
+
+  @override
+  String get settingsDiagnosticsSection => 'Diagnose';
+
+  @override
+  String get settingsDiagnosticsCopyTitle => 'Fehlerprotokoll kopieren';
+
+  @override
+  String get settingsDiagnosticsCopySubtitle =>
+      'Zum Mitschicken, falls etwas schiefgeht';
+
+  @override
+  String get settingsDiagnosticsCopied => 'Protokoll kopiert.';
+
+  @override
+  String get settingsDiagnosticsEmpty => 'Noch keine Fehler aufgezeichnet.';
 }

@@ -631,6 +631,18 @@ class $DownloadableFilesTable extends DownloadableFiles
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _groupKeyMeta = const VerificationMeta(
+    'groupKey',
+  );
+  @override
+  late final GeneratedColumn<String> groupKey = GeneratedColumn<String>(
+    'group_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -642,6 +654,7 @@ class $DownloadableFilesTable extends DownloadableFiles
     fileExtension,
     torrentFileIndex,
     torrentMagnet,
+    groupKey,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -726,6 +739,12 @@ class $DownloadableFilesTable extends DownloadableFiles
         ),
       );
     }
+    if (data.containsKey('group_key')) {
+      context.handle(
+        _groupKeyMeta,
+        groupKey.isAcceptableOrUnknown(data['group_key']!, _groupKeyMeta),
+      );
+    }
     return context;
   }
 
@@ -771,6 +790,10 @@ class $DownloadableFilesTable extends DownloadableFiles
         DriftSqlType.string,
         data['${effectivePrefix}torrent_magnet'],
       ),
+      groupKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_key'],
+      )!,
     );
   }
 
@@ -791,6 +814,11 @@ class DownloadableFile extends DataClass
   final String fileExtension;
   final int? torrentFileIndex;
   final String? torrentMagnet;
+
+  /// The game this file is one version of: `RomTitle.key` of its title.
+  /// Every region, revision and format of a game shares it, and it is what
+  /// the Library groups search results on.
+  final String groupKey;
   const DownloadableFile({
     required this.id,
     required this.name,
@@ -801,6 +829,7 @@ class DownloadableFile extends DataClass
     required this.fileExtension,
     this.torrentFileIndex,
     this.torrentMagnet,
+    required this.groupKey,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -818,6 +847,7 @@ class DownloadableFile extends DataClass
     if (!nullToAbsent || torrentMagnet != null) {
       map['torrent_magnet'] = Variable<String>(torrentMagnet);
     }
+    map['group_key'] = Variable<String>(groupKey);
     return map;
   }
 
@@ -836,6 +866,7 @@ class DownloadableFile extends DataClass
       torrentMagnet: torrentMagnet == null && nullToAbsent
           ? const Value.absent()
           : Value(torrentMagnet),
+      groupKey: Value(groupKey),
     );
   }
 
@@ -854,6 +885,7 @@ class DownloadableFile extends DataClass
       fileExtension: serializer.fromJson<String>(json['fileExtension']),
       torrentFileIndex: serializer.fromJson<int?>(json['torrentFileIndex']),
       torrentMagnet: serializer.fromJson<String?>(json['torrentMagnet']),
+      groupKey: serializer.fromJson<String>(json['groupKey']),
     );
   }
   @override
@@ -869,6 +901,7 @@ class DownloadableFile extends DataClass
       'fileExtension': serializer.toJson<String>(fileExtension),
       'torrentFileIndex': serializer.toJson<int?>(torrentFileIndex),
       'torrentMagnet': serializer.toJson<String?>(torrentMagnet),
+      'groupKey': serializer.toJson<String>(groupKey),
     };
   }
 
@@ -882,6 +915,7 @@ class DownloadableFile extends DataClass
     String? fileExtension,
     Value<int?> torrentFileIndex = const Value.absent(),
     Value<String?> torrentMagnet = const Value.absent(),
+    String? groupKey,
   }) => DownloadableFile(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -896,6 +930,7 @@ class DownloadableFile extends DataClass
     torrentMagnet: torrentMagnet.present
         ? torrentMagnet.value
         : this.torrentMagnet,
+    groupKey: groupKey ?? this.groupKey,
   );
   DownloadableFile copyWithCompanion(DownloadableFilesCompanion data) {
     return DownloadableFile(
@@ -916,6 +951,7 @@ class DownloadableFile extends DataClass
       torrentMagnet: data.torrentMagnet.present
           ? data.torrentMagnet.value
           : this.torrentMagnet,
+      groupKey: data.groupKey.present ? data.groupKey.value : this.groupKey,
     );
   }
 
@@ -930,7 +966,8 @@ class DownloadableFile extends DataClass
           ..write('fileSize: $fileSize, ')
           ..write('fileExtension: $fileExtension, ')
           ..write('torrentFileIndex: $torrentFileIndex, ')
-          ..write('torrentMagnet: $torrentMagnet')
+          ..write('torrentMagnet: $torrentMagnet, ')
+          ..write('groupKey: $groupKey')
           ..write(')'))
         .toString();
   }
@@ -946,6 +983,7 @@ class DownloadableFile extends DataClass
     fileExtension,
     torrentFileIndex,
     torrentMagnet,
+    groupKey,
   );
   @override
   bool operator ==(Object other) =>
@@ -959,7 +997,8 @@ class DownloadableFile extends DataClass
           other.fileSize == this.fileSize &&
           other.fileExtension == this.fileExtension &&
           other.torrentFileIndex == this.torrentFileIndex &&
-          other.torrentMagnet == this.torrentMagnet);
+          other.torrentMagnet == this.torrentMagnet &&
+          other.groupKey == this.groupKey);
 }
 
 class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
@@ -972,6 +1011,7 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
   final Value<String> fileExtension;
   final Value<int?> torrentFileIndex;
   final Value<String?> torrentMagnet;
+  final Value<String> groupKey;
   const DownloadableFilesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -982,6 +1022,7 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
     this.fileExtension = const Value.absent(),
     this.torrentFileIndex = const Value.absent(),
     this.torrentMagnet = const Value.absent(),
+    this.groupKey = const Value.absent(),
   });
   DownloadableFilesCompanion.insert({
     this.id = const Value.absent(),
@@ -993,6 +1034,7 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
     this.fileExtension = const Value.absent(),
     this.torrentFileIndex = const Value.absent(),
     this.torrentMagnet = const Value.absent(),
+    this.groupKey = const Value.absent(),
   }) : name = Value(name),
        fileName = Value(fileName),
        consoleId = Value(consoleId),
@@ -1007,6 +1049,7 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
     Expression<String>? fileExtension,
     Expression<int>? torrentFileIndex,
     Expression<String>? torrentMagnet,
+    Expression<String>? groupKey,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1018,6 +1061,7 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
       if (fileExtension != null) 'file_extension': fileExtension,
       if (torrentFileIndex != null) 'torrent_file_index': torrentFileIndex,
       if (torrentMagnet != null) 'torrent_magnet': torrentMagnet,
+      if (groupKey != null) 'group_key': groupKey,
     });
   }
 
@@ -1031,6 +1075,7 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
     Value<String>? fileExtension,
     Value<int?>? torrentFileIndex,
     Value<String?>? torrentMagnet,
+    Value<String>? groupKey,
   }) {
     return DownloadableFilesCompanion(
       id: id ?? this.id,
@@ -1042,6 +1087,7 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
       fileExtension: fileExtension ?? this.fileExtension,
       torrentFileIndex: torrentFileIndex ?? this.torrentFileIndex,
       torrentMagnet: torrentMagnet ?? this.torrentMagnet,
+      groupKey: groupKey ?? this.groupKey,
     );
   }
 
@@ -1075,6 +1121,9 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
     if (torrentMagnet.present) {
       map['torrent_magnet'] = Variable<String>(torrentMagnet.value);
     }
+    if (groupKey.present) {
+      map['group_key'] = Variable<String>(groupKey.value);
+    }
     return map;
   }
 
@@ -1089,7 +1138,8 @@ class DownloadableFilesCompanion extends UpdateCompanion<DownloadableFile> {
           ..write('fileSize: $fileSize, ')
           ..write('fileExtension: $fileExtension, ')
           ..write('torrentFileIndex: $torrentFileIndex, ')
-          ..write('torrentMagnet: $torrentMagnet')
+          ..write('torrentMagnet: $torrentMagnet, ')
+          ..write('groupKey: $groupKey')
           ..write(')'))
         .toString();
   }
@@ -3256,6 +3306,7 @@ typedef $$DownloadableFilesTableCreateCompanionBuilder =
       Value<String> fileExtension,
       Value<int?> torrentFileIndex,
       Value<String?> torrentMagnet,
+      Value<String> groupKey,
     });
 typedef $$DownloadableFilesTableUpdateCompanionBuilder =
     DownloadableFilesCompanion Function({
@@ -3268,6 +3319,7 @@ typedef $$DownloadableFilesTableUpdateCompanionBuilder =
       Value<String> fileExtension,
       Value<int?> torrentFileIndex,
       Value<String?> torrentMagnet,
+      Value<String> groupKey,
     });
 
 final class $$DownloadableFilesTableReferences
@@ -3369,6 +3421,11 @@ class $$DownloadableFilesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get groupKey => $composableBuilder(
+    column: $table.groupKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$ConsolesTableFilterComposer get consoleId {
     final $$ConsolesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -3467,6 +3524,11 @@ class $$DownloadableFilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get groupKey => $composableBuilder(
+    column: $table.groupKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ConsolesTableOrderingComposer get consoleId {
     final $$ConsolesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -3531,6 +3593,9 @@ class $$DownloadableFilesTableAnnotationComposer
     column: $table.torrentMagnet,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get groupKey =>
+      $composableBuilder(column: $table.groupKey, builder: (column) => column);
 
   $$ConsolesTableAnnotationComposer get consoleId {
     final $$ConsolesTableAnnotationComposer composer = $composerBuilder(
@@ -3623,6 +3688,7 @@ class $$DownloadableFilesTableTableManager
                 Value<String> fileExtension = const Value.absent(),
                 Value<int?> torrentFileIndex = const Value.absent(),
                 Value<String?> torrentMagnet = const Value.absent(),
+                Value<String> groupKey = const Value.absent(),
               }) => DownloadableFilesCompanion(
                 id: id,
                 name: name,
@@ -3633,6 +3699,7 @@ class $$DownloadableFilesTableTableManager
                 fileExtension: fileExtension,
                 torrentFileIndex: torrentFileIndex,
                 torrentMagnet: torrentMagnet,
+                groupKey: groupKey,
               ),
           createCompanionCallback:
               ({
@@ -3645,6 +3712,7 @@ class $$DownloadableFilesTableTableManager
                 Value<String> fileExtension = const Value.absent(),
                 Value<int?> torrentFileIndex = const Value.absent(),
                 Value<String?> torrentMagnet = const Value.absent(),
+                Value<String> groupKey = const Value.absent(),
               }) => DownloadableFilesCompanion.insert(
                 id: id,
                 name: name,
@@ -3655,6 +3723,7 @@ class $$DownloadableFilesTableTableManager
                 fileExtension: fileExtension,
                 torrentFileIndex: torrentFileIndex,
                 torrentMagnet: torrentMagnet,
+                groupKey: groupKey,
               ),
           withReferenceMapper: (p0) => p0
               .map(
